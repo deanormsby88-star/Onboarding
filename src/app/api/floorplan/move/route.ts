@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureSchema, fetchOverrides, pool } from "@/lib/db";
-import { EMPLOYEES, effectiveRooms, getRoom, homeRoomId } from "@/lib/floorplan";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, pool } from "@/lib/db";
+import { allNames, effectiveRooms, getRoom, homeRoomId } from "@/lib/floorplan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,12 +15,15 @@ export async function POST(req: NextRequest) {
     const toRoomId = String(body?.toRoomId ?? "");
     const walkId = body?.walkId != null ? Number(body.walkId) : null;
 
-    if (!(num in EMPLOYEES) || !getRoom(toRoomId)) {
+    const custom = await fetchCustomEmployees();
+    const names = allNames(custom);
+    if (!(num in names) || !getRoom(toRoomId)) {
       return NextResponse.json({ error: "Unknown employee or room" }, { status: 400 });
     }
 
     if (homeRoomId(num) === toRoomId) {
       // Moving someone back to their original room clears the correction.
+      // (New starters have no static room, so their override always stays.)
       await pool().query("DELETE FROM room_overrides WHERE employee_number = $1", [num]);
     } else {
       await pool().query(
@@ -42,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const overrides = await fetchOverrides();
-    return NextResponse.json({ ok: true, rooms: effectiveRooms(overrides) });
+    return NextResponse.json({ ok: true, rooms: effectiveRooms(overrides, custom), names });
   } catch (err) {
     console.error("POST /api/floorplan/move failed", err);
     return NextResponse.json({ error: "Failed to move team member" }, { status: 500 });

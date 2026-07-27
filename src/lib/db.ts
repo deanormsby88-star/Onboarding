@@ -59,6 +59,12 @@ CREATE TABLE IF NOT EXISTS room_overrides (
   room_id          TEXT NOT NULL,
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS custom_employees (
+  employee_number  INTEGER PRIMARY KEY,
+  name             TEXT NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 export async function ensureSchema(): Promise<void> {
@@ -81,6 +87,16 @@ export async function fetchOverrides(): Promise<Record<number, string>> {
   );
   const map: Record<number, string> = {};
   for (const r of rows) map[r.employee_number] = r.room_id;
+  return map;
+}
+
+// Team members added after the original floor plan (new starters).
+export async function fetchCustomEmployees(): Promise<Record<number, string>> {
+  const { rows } = await pool().query<{ employee_number: number; name: string }>(
+    "SELECT employee_number, name FROM custom_employees"
+  );
+  const map: Record<number, string> = {};
+  for (const r of rows) map[r.employee_number] = r.name;
   return map;
 }
 

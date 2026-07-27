@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
 import type { EntryRow, WalkRow } from "./db";
+import type { Room } from "./floorplan";
 
 const PAGE_W = 595.28; // A4
 const PAGE_H = 841.89;
@@ -86,6 +87,64 @@ export function presenceLabel(p: string): string {
 
 export function categoryLabel(c: string | null): string {
   return c ? CATEGORY_LABEL[c] ?? c : "";
+}
+
+// The current floor plan (with corrections and new starters) as a printable
+// room-by-room roster.
+export async function buildFloorPlanPdf(
+  rooms: Room[],
+  names: Record<number, string>
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const ctx: Ctx = { doc, page: doc.addPage([PAGE_W, PAGE_H]), y: PAGE_H - MARGIN, font, bold };
+
+  const now = new Date().toLocaleString("en-ZA", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: process.env.REPORT_TIMEZONE || "Africa/Johannesburg",
+  });
+  const totalPeople = rooms.reduce((n, r) => n + r.employeeNumbers.length, 0);
+
+  text(ctx, "Floor Plan - Current Room Assignments", { size: 20, bold: true, color: ACCENT });
+  text(ctx, `Generated ${now}`, { size: 10, color: MUTED });
+  text(
+    ctx,
+    `${rooms.length} rooms  |  ${totalPeople} people  |  includes all corrections and new starters recorded during floor walks`,
+    { size: 10, color: MUTED }
+  );
+  ctx.y -= 10;
+
+  for (const room of rooms) {
+    need(ctx, 46);
+    ctx.y -= 6;
+    text(ctx, `${sanitize(room.name)}  (${room.employeeNumbers.length})`, { size: 12.5, bold: true });
+    if (room.employeeNumbers.length === 0) {
+      text(ctx, "No one assigned", { size: 9.5, x: MARGIN + 12, color: MUTED });
+      continue;
+    }
+    for (const num of room.employeeNumbers) {
+      need(ctx, 14);
+      ctx.page.drawText(`#${String(num).padStart(3, " ")}`, {
+        x: MARGIN + 12,
+        y: ctx.y - 10,
+        size: 9.5,
+        font: bold,
+        color: MUTED,
+      });
+      ctx.page.drawText(sanitize(names[num] ?? `Employee #${num}`), {
+        x: MARGIN + 52,
+        y: ctx.y - 10,
+        size: 9.5,
+        font,
+        color: INK,
+      });
+      ctx.y -= 13;
+    }
+  }
+
+  return doc.save();
 }
 
 export async function buildWalkPdf(walk: WalkRow, entries: EntryRow[]): Promise<Uint8Array> {

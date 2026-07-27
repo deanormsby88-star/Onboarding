@@ -182,14 +182,19 @@ export function employeeName(num: number): string {
   return EMPLOYEES[num] ?? `Employee #${num}`;
 }
 
-// Applies room overrides (people moved during walks) to the static plan.
-export function effectiveRooms(overrides: Record<number, string>): Room[] {
+// Applies room overrides (people moved during walks, and new starters whose
+// room only exists as an override) to the static plan. `extraNames` carries
+// custom team members added after the original spreadsheet.
+export function effectiveRooms(
+  overrides: Record<number, string>,
+  extraNames: Record<number, string> = {}
+): Room[] {
   const rooms = ROOMS.map((r) => ({ ...r, employeeNumbers: [...r.employeeNumbers] }));
   const byId = new Map(rooms.map((r) => [r.id, r]));
   for (const [numStr, roomId] of Object.entries(overrides)) {
     const num = Number(numStr);
     const target = byId.get(roomId);
-    if (!target || !(num in EMPLOYEES)) continue;
+    if (!target || !(num in EMPLOYEES || num in extraNames)) continue;
     for (const r of rooms) {
       const i = r.employeeNumbers.indexOf(num);
       if (i >= 0) r.employeeNumbers.splice(i, 1);
@@ -197,6 +202,11 @@ export function effectiveRooms(overrides: Record<number, string>): Room[] {
     target.employeeNumbers.push(num);
   }
   return rooms;
+}
+
+// Full name map: spreadsheet employees plus custom additions.
+export function allNames(extraNames: Record<number, string>): Record<number, string> {
+  return { ...EMPLOYEES, ...extraNames };
 }
 
 // The room an employee is assigned to on the static plan (before overrides).

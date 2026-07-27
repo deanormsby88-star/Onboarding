@@ -31,3 +31,11 @@ CREATE TABLE IF NOT EXISTS room_overrides (
   room_id          TEXT NOT NULL,
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Team members added after the original floor plan (new starters).
+-- Their room lives in room_overrides like any other floor-plan correction.
+CREATE TABLE IF NOT EXISTS custom_employees (
+  employee_number  INTEGER PRIMARY KEY,
+  name             TEXT NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);

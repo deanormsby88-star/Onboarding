@@ -85,9 +85,14 @@ export default function LandingPage() {
         </button>
       </section>
 
-      <a href="/history" className="text-center text-sm font-medium text-blue-600 underline">
-        View past floor walks
-      </a>
+      <div className="flex flex-col gap-2 text-center">
+        <a href="/history" className="text-sm font-medium text-blue-600 underline">
+          View past floor walks
+        </a>
+        <a href="/api/floorplan/pdf" className="text-sm font-medium text-blue-600 underline">
+          Download current floor plan (PDF)
+        </a>
+      </div>
     </main>
   );
 }

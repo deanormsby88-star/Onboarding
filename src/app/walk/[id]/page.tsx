@@ -29,6 +29,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
   const search = useSearchParams();
 
   const [rooms, setRooms] = useState<Room[]>(STATIC_ROOMS);
+  const [names, setNames] = useState<Record<number, string>>({});
   const roomIdx = Math.min(Math.max(Number(search.get("room") ?? 0) || 0, 0), rooms.length - 1);
   const room = rooms[roomIdx];
 
@@ -36,9 +37,17 @@ export default function WalkPage({ params }: { params: { id: string } }) {
   const [people, setPeople] = useState<Record<number, PersonState>>({});
   const [saving, setSaving] = useState(false);
   const [moving, setMoving] = useState<number | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+
+  const nameOf = useCallback(
+    (num: number) => names[num] ?? employeeName(num),
+    [names]
+  );
 
   const defaultState = useCallback((r: Room): Record<number, PersonState> => {
     const s: Record<number, PersonState> = {};
@@ -50,6 +59,8 @@ export default function WalkPage({ params }: { params: { id: string } }) {
     let cancelled = false;
     setLoaded(false);
     setNotice(null);
+    setAddOpen(false);
+    setAddName("");
     Promise.all([
       fetch(`/api/walks/${params.id}`).then((r) => r.json()),
       fetch(`/api/floorplan`).then((r) => r.json()),
@@ -58,6 +69,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
         if (cancelled) return;
         const effRooms: Room[] = planData.rooms?.length ? planData.rooms : STATIC_ROOMS;
         setRooms(effRooms);
+        if (planData.names) setNames(planData.names);
         if (walkData.walk) {
           if (walkData.walk.status !== "in_progress") {
             router.replace(`/walk/${params.id}/summary?done=1`);
@@ -118,6 +130,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
       if (!res.ok) throw new Error(data.error || "Failed to move");
       const effRooms: Room[] = data.rooms;
       setRooms(effRooms);
+      if (data.names) setNames(data.names);
       setPeople((prev) => {
         const next = { ...prev };
         delete next[num];
@@ -126,13 +139,41 @@ export default function WalkPage({ params }: { params: { id: string } }) {
       const targetIdx = effRooms.findIndex((r) => r.id === p.moveTo);
       const targetName = effRooms[targetIdx]?.name ?? p.moveTo;
       setNotice(
-        `${employeeName(num)} moved to Room ${targetName}. The floor plan is updated for all future walks.` +
+        `${nameOf(num)} moved to Room ${targetName}. The floor plan is updated for all future walks.` +
           (targetIdx < roomIdx ? " You've already passed that room — go Back if you still need to check them today." : "")
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to move team member");
     } finally {
       setMoving(null);
+    }
+  }
+
+  async function addPerson() {
+    const name = addName.trim();
+    if (!name || adding) return;
+    setAdding(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/team`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, roomId: room.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add team member");
+      setRooms(data.rooms);
+      if (data.names) setNames(data.names);
+      setPeople((prev) => ({ ...prev, [data.employee.number]: freshPerson() }));
+      setAddName("");
+      setAddOpen(false);
+      setNotice(
+        `${data.employee.name} (#${data.employee.number}) added to Room ${room.name} — they're on the floor plan for all future walks.`
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add team member");
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -209,10 +250,11 @@ export default function WalkPage({ params }: { params: { id: string } }) {
 
       {!loaded ? (
         <p className="py-10 text-center text-slate-400">Loading…</p>
-      ) : room.employeeNumbers.filter((n) => people[n]).length === 0 ? (
-        <p className="py-10 text-center text-slate-400">No one is assigned to this room any more.</p>
       ) : (
         <section className="flex flex-col gap-3">
+          {room.employeeNumbers.filter((n) => people[n]).length === 0 && (
+            <p className="py-6 text-center text-slate-400">No one is assigned to this room.</p>
+          )}
           {room.employeeNumbers.map((num) => {
             const p = people[num];
             if (!p) return null;
@@ -220,7 +262,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
               <div key={num} className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="font-semibold">{employeeName(num)}</div>
+                    <div className="font-semibold">{nameOf(num)}</div>
                     <div className="text-xs text-slate-400">#{num}</div>
                   </div>
                   <div className="flex flex-none gap-1.5">
@@ -325,6 +367,48 @@ export default function WalkPage({ params }: { params: { id: string } }) {
               </div>
             );
           })}
+
+          {addOpen ? (
+            <div className="rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50 p-4">
+              <div className="text-sm font-semibold text-blue-900">
+                New starter in this room? Add them to the floor plan.
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addPerson()}
+                  placeholder="Full name"
+                  autoFocus
+                  className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white p-2.5 text-sm focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  onClick={addPerson}
+                  disabled={!addName.trim() || adding}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                >
+                  {adding ? "Adding…" : "Add"}
+                </button>
+                <button
+                  onClick={() => {
+                    setAddOpen(false);
+                    setAddName("");
+                  }}
+                  className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="rounded-2xl border-2 border-dashed border-slate-300 p-3.5 text-sm font-bold text-slate-500 transition hover:border-blue-400 hover:text-blue-600"
+            >
+              + Add a new team member to this room
+            </button>
+          )}
         </section>
       )}
 

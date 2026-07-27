@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureSchema, fetchOverrides, pool } from "@/lib/db";
-import { effectiveRooms, employeeName } from "@/lib/floorplan";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, pool } from "@/lib/db";
+import { allNames, effectiveRooms } from "@/lib/floorplan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,8 +19,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const body = await req.json().catch(() => null);
     const roomId = String(body?.roomId ?? "");
-    const overrides = await fetchOverrides();
-    const room = effectiveRooms(overrides).find((r) => r.id === roomId);
+    const [overrides, custom] = await Promise.all([fetchOverrides(), fetchCustomEmployees()]);
+    const names = allNames(custom);
+    const room = effectiveRooms(overrides, custom).find((r) => r.id === roomId);
     if (!room || !Array.isArray(body?.entries)) {
       return NextResponse.json({ error: "Bad payload" }, { status: 400 });
     }
@@ -50,7 +51,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
            ON CONFLICT (walk_id, room_id, employee_number)
            DO UPDATE SET presence = EXCLUDED.presence, note = EXCLUDED.note,
                          note_category = EXCLUDED.note_category, recorded_at = now()`,
-          [id, room.id, room.name, num, employeeName(num), presence, note, category]
+          [id, room.id, room.name, num, names[num] ?? `Employee #${num}`, presence, note, category]
         );
       }
       await client.query("COMMIT");
