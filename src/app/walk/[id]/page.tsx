@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ROOMS, employeeName, PresenceStatus } from "@/lib/floorplan";
+import { ROOMS as STATIC_ROOMS, Room, employeeName, PresenceStatus } from "@/lib/floorplan";
 
 interface PersonState {
   presence: PresenceStatus;
   note: string;
   noteCategory: "follow_up" | "hr";
   noteOpen: boolean;
+  moveOpen: boolean;
+  moveTo: string;
 }
 
 const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; active: string }[] = [
@@ -18,44 +20,58 @@ const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; active: string }
   { value: "not_started", label: "Shift hasn't started", active: "bg-slate-600 text-white" },
 ];
 
+function freshPerson(): PersonState {
+  return { presence: "present", note: "", noteCategory: "follow_up", noteOpen: false, moveOpen: false, moveTo: "" };
+}
+
 export default function WalkPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const search = useSearchParams();
-  const roomIdx = Math.min(Math.max(Number(search.get("room") ?? 0) || 0, 0), ROOMS.length - 1);
-  const room = ROOMS[roomIdx];
+
+  const [rooms, setRooms] = useState<Room[]>(STATIC_ROOMS);
+  const roomIdx = Math.min(Math.max(Number(search.get("room") ?? 0) || 0, 0), rooms.length - 1);
+  const room = rooms[roomIdx];
 
   const [walker, setWalker] = useState<string>("");
   const [people, setPeople] = useState<Record<number, PersonState>>({});
   const [saving, setSaving] = useState(false);
+  const [moving, setMoving] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const defaultState = useCallback((): Record<number, PersonState> => {
+  const defaultState = useCallback((r: Room): Record<number, PersonState> => {
     const s: Record<number, PersonState> = {};
-    for (const num of room.employeeNumbers) {
-      s[num] = { presence: "present", note: "", noteCategory: "follow_up", noteOpen: false };
-    }
+    for (const num of r.employeeNumbers) s[num] = freshPerson();
     return s;
-  }, [room]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoaded(false);
-    fetch(`/api/walks/${params.id}`)
-      .then((r) => r.json())
-      .then((data) => {
+    setNotice(null);
+    Promise.all([
+      fetch(`/api/walks/${params.id}`).then((r) => r.json()),
+      fetch(`/api/floorplan`).then((r) => r.json()),
+    ])
+      .then(([walkData, planData]) => {
         if (cancelled) return;
-        if (data.walk) {
-          if (data.walk.status !== "in_progress") {
+        const effRooms: Room[] = planData.rooms?.length ? planData.rooms : STATIC_ROOMS;
+        setRooms(effRooms);
+        if (walkData.walk) {
+          if (walkData.walk.status !== "in_progress") {
             router.replace(`/walk/${params.id}/summary?done=1`);
             return;
           }
-          setWalker(data.walk.walker);
+          setWalker(walkData.walk.walker);
         }
-        const base = defaultState();
-        for (const e of data.entries ?? []) {
-          if (e.room_id === room.id && base[e.employee_number]) {
+        const idx = Math.min(Math.max(Number(search.get("room") ?? 0) || 0, 0), effRooms.length - 1);
+        const r = effRooms[idx];
+        const base = defaultState(r);
+        for (const e of walkData.entries ?? []) {
+          if (e.room_id === r.id && base[e.employee_number]) {
             base[e.employee_number] = {
+              ...freshPerson(),
               presence: e.presence,
               note: e.note ?? "",
               noteCategory: e.note_category === "hr" ? "hr" : "follow_up",
@@ -68,14 +84,15 @@ export default function WalkPage({ params }: { params: { id: string } }) {
       })
       .catch(() => {
         if (!cancelled) {
-          setPeople(defaultState());
+          setPeople(defaultState(room));
           setLoaded(true);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [params.id, room.id, defaultState, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, roomIdx]);
 
   const noteCount = useMemo(
     () => Object.values(people).filter((p) => p.note.trim()).length,
@@ -84,6 +101,39 @@ export default function WalkPage({ params }: { params: { id: string } }) {
 
   function update(num: number, patch: Partial<PersonState>) {
     setPeople((prev) => ({ ...prev, [num]: { ...prev[num], ...patch } }));
+  }
+
+  async function movePerson(num: number) {
+    const p = people[num];
+    if (!p?.moveTo || p.moveTo === room.id || moving !== null) return;
+    setMoving(num);
+    setError(null);
+    try {
+      const res = await fetch(`/api/floorplan/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeNumber: num, toRoomId: p.moveTo, walkId: Number(params.id) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to move");
+      const effRooms: Room[] = data.rooms;
+      setRooms(effRooms);
+      setPeople((prev) => {
+        const next = { ...prev };
+        delete next[num];
+        return next;
+      });
+      const targetIdx = effRooms.findIndex((r) => r.id === p.moveTo);
+      const targetName = effRooms[targetIdx]?.name ?? p.moveTo;
+      setNotice(
+        `${employeeName(num)} moved to Room ${targetName}. The floor plan is updated for all future walks.` +
+          (targetIdx < roomIdx ? " You've already passed that room — go Back if you still need to check them today." : "")
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to move team member");
+    } finally {
+      setMoving(null);
+    }
   }
 
   async function saveRoom(next: number) {
@@ -96,19 +146,21 @@ export default function WalkPage({ params }: { params: { id: string } }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomId: room.id,
-          entries: room.employeeNumbers.map((num) => ({
-            employeeNumber: num,
-            presence: people[num]?.presence ?? "present",
-            note: people[num]?.note ?? "",
-            noteCategory: people[num]?.noteCategory ?? "follow_up",
-          })),
+          entries: room.employeeNumbers
+            .filter((num) => people[num])
+            .map((num) => ({
+              employeeNumber: num,
+              presence: people[num].presence,
+              note: people[num].note,
+              noteCategory: people[num].noteCategory,
+            })),
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to save room");
       }
-      if (next >= ROOMS.length) {
+      if (next >= rooms.length) {
         router.push(`/walk/${params.id}/summary`);
       } else {
         router.push(`/walk/${params.id}?room=${next}`);
@@ -121,7 +173,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const isLast = roomIdx === ROOMS.length - 1;
+  const isLast = roomIdx === rooms.length - 1;
 
   return (
     <main className="flex flex-col gap-4">
@@ -131,13 +183,13 @@ export default function WalkPage({ params }: { params: { id: string } }) {
             Walker: <strong className="text-slate-700">{walker || "…"}</strong>
           </span>
           <span>
-            Room {roomIdx + 1} of {ROOMS.length}
+            Room {roomIdx + 1} of {rooms.length}
           </span>
         </div>
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-blue-600 transition-all"
-            style={{ width: `${((roomIdx + 1) / ROOMS.length) * 100}%` }}
+            style={{ width: `${((roomIdx + 1) / rooms.length) * 100}%` }}
           />
         </div>
         <h1 className="mt-2 text-xl font-bold text-slate-900">
@@ -149,8 +201,16 @@ export default function WalkPage({ params }: { params: { id: string } }) {
         </p>
       </header>
 
+      {notice && (
+        <p className="rounded-xl bg-blue-50 p-3 text-sm font-medium text-blue-800 ring-1 ring-blue-200">
+          {notice}
+        </p>
+      )}
+
       {!loaded ? (
         <p className="py-10 text-center text-slate-400">Loading…</p>
+      ) : room.employeeNumbers.filter((n) => people[n]).length === 0 ? (
+        <p className="py-10 text-center text-slate-400">No one is assigned to this room any more.</p>
       ) : (
         <section className="flex flex-col gap-3">
           {room.employeeNumbers.map((num) => {
@@ -163,17 +223,57 @@ export default function WalkPage({ params }: { params: { id: string } }) {
                     <div className="font-semibold">{employeeName(num)}</div>
                     <div className="text-xs text-slate-400">#{num}</div>
                   </div>
-                  <button
-                    onClick={() => update(num, { noteOpen: !p.noteOpen })}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                      p.note.trim()
-                        ? "bg-red-100 text-red-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {p.note.trim() ? "Note ✓" : p.noteOpen ? "Hide note" : "+ Note"}
-                  </button>
+                  <div className="flex flex-none gap-1.5">
+                    <button
+                      onClick={() => update(num, { moveOpen: !p.moveOpen, moveTo: "" })}
+                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        p.moveOpen ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      Move
+                    </button>
+                    <button
+                      onClick={() => update(num, { noteOpen: !p.noteOpen })}
+                      className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        p.note.trim() ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {p.note.trim() ? "Note ✓" : p.noteOpen ? "Hide note" : "+ Note"}
+                    </button>
+                  </div>
                 </div>
+
+                {p.moveOpen && (
+                  <div className="mt-3 rounded-xl bg-blue-50 p-3 ring-1 ring-blue-100">
+                    <div className="text-xs font-semibold text-blue-900">
+                      Sitting somewhere else? Move them to their actual room — this updates the
+                      floor plan for future walks too.
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <select
+                        value={p.moveTo}
+                        onChange={(e) => update(num, { moveTo: e.target.value })}
+                        className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white p-2 text-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="">Choose room…</option>
+                        {rooms
+                          .filter((r) => r.id !== room.id)
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        onClick={() => movePerson(num)}
+                        disabled={!p.moveTo || moving !== null}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+                      >
+                        {moving === num ? "Moving…" : "Move"}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {PRESENCE_OPTIONS.map((opt) => (

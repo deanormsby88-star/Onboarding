@@ -53,6 +53,12 @@ CREATE TABLE IF NOT EXISTS floor_walk_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_entries_walk ON floor_walk_entries(walk_id);
+
+CREATE TABLE IF NOT EXISTS room_overrides (
+  employee_number  INTEGER PRIMARY KEY,
+  room_id          TEXT NOT NULL,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 export async function ensureSchema(): Promise<void> {
@@ -66,6 +72,16 @@ export async function ensureSchema(): Promise<void> {
       });
   }
   return global.__floorwalkSchemaReady;
+}
+
+// Floor-plan corrections made during walks: employee -> room they now sit in.
+export async function fetchOverrides(): Promise<Record<number, string>> {
+  const { rows } = await pool().query<{ employee_number: number; room_id: string }>(
+    "SELECT employee_number, room_id FROM room_overrides"
+  );
+  const map: Record<number, string> = {};
+  for (const r of rows) map[r.employee_number] = r.room_id;
+  return map;
 }
 
 export interface WalkRow {

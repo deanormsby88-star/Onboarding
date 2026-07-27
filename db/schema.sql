@@ -24,3 +24,10 @@ CREATE TABLE IF NOT EXISTS floor_walk_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_entries_walk ON floor_walk_entries(walk_id);
+
+-- Floor-plan corrections made during walks: employee -> room they now sit in.
+CREATE TABLE IF NOT EXISTS room_overrides (
+  employee_number  INTEGER PRIMARY KEY,
+  room_id          TEXT NOT NULL,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);

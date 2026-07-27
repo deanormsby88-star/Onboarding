@@ -181,3 +181,25 @@ export function roomIndex(roomId: string): number {
 export function employeeName(num: number): string {
   return EMPLOYEES[num] ?? `Employee #${num}`;
 }
+
+// Applies room overrides (people moved during walks) to the static plan.
+export function effectiveRooms(overrides: Record<number, string>): Room[] {
+  const rooms = ROOMS.map((r) => ({ ...r, employeeNumbers: [...r.employeeNumbers] }));
+  const byId = new Map(rooms.map((r) => [r.id, r]));
+  for (const [numStr, roomId] of Object.entries(overrides)) {
+    const num = Number(numStr);
+    const target = byId.get(roomId);
+    if (!target || !(num in EMPLOYEES)) continue;
+    for (const r of rooms) {
+      const i = r.employeeNumbers.indexOf(num);
+      if (i >= 0) r.employeeNumbers.splice(i, 1);
+    }
+    target.employeeNumbers.push(num);
+  }
+  return rooms;
+}
+
+// The room an employee is assigned to on the static plan (before overrides).
+export function homeRoomId(num: number): string | undefined {
+  return ROOMS.find((r) => r.employeeNumbers.includes(num))?.id;
+}
