@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureSchema, fetchCustomEmployees, fetchOverrides } from "@/lib/db";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, fetchRoomNames } from "@/lib/db";
 import { allNames, effectiveRooms } from "@/lib/floorplan";
 import { buildFloorPlanPdf } from "@/lib/pdf";
 
@@ -9,8 +9,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     await ensureSchema();
-    const [overrides, custom] = await Promise.all([fetchOverrides(), fetchCustomEmployees()]);
-    const pdf = await buildFloorPlanPdf(effectiveRooms(overrides, custom), allNames(custom));
+    const [overrides, custom, roomNames] = await Promise.all([
+      fetchOverrides(),
+      fetchCustomEmployees(),
+      fetchRoomNames(),
+    ]);
+    const pdf = await buildFloorPlanPdf(effectiveRooms(overrides, custom, roomNames), allNames(custom));
     const today = new Date().toISOString().slice(0, 10);
     return new NextResponse(Buffer.from(pdf), {
       headers: {

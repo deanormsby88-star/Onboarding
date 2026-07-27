@@ -40,6 +40,9 @@ export default function WalkPage({ params }: { params: { id: string } }) {
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -61,6 +64,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
     setNotice(null);
     setAddOpen(false);
     setAddName("");
+    setRenameOpen(false);
     Promise.all([
       fetch(`/api/walks/${params.id}`).then((r) => r.json()),
       fetch(`/api/floorplan`).then((r) => r.json()),
@@ -149,6 +153,30 @@ export default function WalkPage({ params }: { params: { id: string } }) {
     }
   }
 
+  async function renameRoom() {
+    const name = renameValue.trim();
+    if (!name || renaming) return;
+    setRenaming(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/floorplan/room-name`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: room.id, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to rename room");
+      setRooms(data.rooms);
+      if (data.names) setNames(data.names);
+      setRenameOpen(false);
+      setNotice(`Room renamed to "${name}" — the floor plan is updated for all future walks.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to rename room");
+    } finally {
+      setRenaming(false);
+    }
+  }
+
   async function addPerson() {
     const name = addName.trim();
     if (!name || adding) return;
@@ -233,9 +261,45 @@ export default function WalkPage({ params }: { params: { id: string } }) {
             style={{ width: `${((roomIdx + 1) / rooms.length) * 100}%` }}
           />
         </div>
-        <h1 className="mt-2 text-xl font-bold text-slate-900">
-          Go to <span className="text-blue-700">Room {room.name}</span>
-        </h1>
+        <div className="mt-2 flex items-start justify-between gap-2">
+          <h1 className="text-xl font-bold text-slate-900">
+            Go to <span className="text-blue-700">Room {room.name}</span>
+          </h1>
+          <button
+            onClick={() => {
+              setRenameValue(room.name);
+              setRenameOpen(!renameOpen);
+            }}
+            className="mt-0.5 flex-none rounded-lg bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600"
+          >
+            Rename
+          </button>
+        </div>
+        {renameOpen && (
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && renameRoom()}
+              autoFocus
+              className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white p-2 text-sm focus:border-blue-500 focus:outline-none"
+            />
+            <button
+              onClick={renameRoom}
+              disabled={!renameValue.trim() || renaming}
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white disabled:bg-slate-300"
+            >
+              {renaming ? "…" : "Save"}
+            </button>
+            <button
+              onClick={() => setRenameOpen(false)}
+              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <p className="text-xs text-slate-500">
           {room.employeeNumbers.length} people should be here
           {noteCount > 0 && ` · ${noteCount} note${noteCount === 1 ? "" : "s"} in this room`}

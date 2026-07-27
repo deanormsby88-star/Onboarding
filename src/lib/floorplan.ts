@@ -187,9 +187,14 @@ export function employeeName(num: number): string {
 // custom team members added after the original spreadsheet.
 export function effectiveRooms(
   overrides: Record<number, string>,
-  extraNames: Record<number, string> = {}
+  extraNames: Record<number, string> = {},
+  roomNames: Record<string, string> = {}
 ): Room[] {
-  const rooms = ROOMS.map((r) => ({ ...r, employeeNumbers: [...r.employeeNumbers] }));
+  const rooms = ROOMS.map((r) => ({
+    ...r,
+    name: roomNames[r.id]?.trim() || r.name,
+    employeeNumbers: [...r.employeeNumbers],
+  }));
   const byId = new Map(rooms.map((r) => [r.id, r]));
   for (const [numStr, roomId] of Object.entries(overrides)) {
     const num = Number(numStr);

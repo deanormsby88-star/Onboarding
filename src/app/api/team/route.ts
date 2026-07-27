@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureSchema, fetchCustomEmployees, fetchOverrides, pool } from "@/lib/db";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, fetchRoomNames, pool } from "@/lib/db";
 import { allNames, effectiveRooms, getRoom } from "@/lib/floorplan";
 
 export const runtime = "nodejs";
@@ -46,13 +46,17 @@ export async function POST(req: NextRequest) {
       client.release();
     }
 
-    const [overrides, custom] = await Promise.all([fetchOverrides(), fetchCustomEmployees()]);
+    const [overrides, custom2, roomNames] = await Promise.all([
+      fetchOverrides(),
+      fetchCustomEmployees(),
+      fetchRoomNames(),
+    ]);
     return NextResponse.json(
       {
         ok: true,
         employee: { number: num, name },
-        rooms: effectiveRooms(overrides, custom),
-        names: allNames(custom),
+        rooms: effectiveRooms(overrides, custom2, roomNames),
+        names: allNames(custom2),
       },
       { status: 201 }
     );

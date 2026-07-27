@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS custom_employees (
   name             TEXT NOT NULL,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS room_name_overrides (
+  room_id     TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 export async function ensureSchema(): Promise<void> {
@@ -97,6 +103,16 @@ export async function fetchCustomEmployees(): Promise<Record<number, string>> {
   );
   const map: Record<number, string> = {};
   for (const r of rows) map[r.employee_number] = r.name;
+  return map;
+}
+
+// Room renames made during walks: room id -> current display name.
+export async function fetchRoomNames(): Promise<Record<string, string>> {
+  const { rows } = await pool().query<{ room_id: string; name: string }>(
+    "SELECT room_id, name FROM room_name_overrides"
+  );
+  const map: Record<string, string> = {};
+  for (const r of rows) map[r.room_id] = r.name;
   return map;
 }
 

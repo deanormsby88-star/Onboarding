@@ -39,3 +39,10 @@ CREATE TABLE IF NOT EXISTS custom_employees (
   name             TEXT NOT NULL,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Room renames made during walks: room id -> current display name.
+CREATE TABLE IF NOT EXISTS room_name_overrides (
+  room_id     TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);

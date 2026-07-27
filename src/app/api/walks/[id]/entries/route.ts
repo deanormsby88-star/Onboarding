@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureSchema, fetchCustomEmployees, fetchOverrides, pool } from "@/lib/db";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, fetchRoomNames, pool } from "@/lib/db";
 import { allNames, effectiveRooms } from "@/lib/floorplan";
 
 export const runtime = "nodejs";
@@ -19,9 +19,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     const body = await req.json().catch(() => null);
     const roomId = String(body?.roomId ?? "");
-    const [overrides, custom] = await Promise.all([fetchOverrides(), fetchCustomEmployees()]);
+    const [overrides, custom, roomNames] = await Promise.all([
+      fetchOverrides(),
+      fetchCustomEmployees(),
+      fetchRoomNames(),
+    ]);
     const names = allNames(custom);
-    const room = effectiveRooms(overrides, custom).find((r) => r.id === roomId);
+    const room = effectiveRooms(overrides, custom, roomNames).find((r) => r.id === roomId);
     if (!room || !Array.isArray(body?.entries)) {
       return NextResponse.json({ error: "Bad payload" }, { status: 400 });
     }

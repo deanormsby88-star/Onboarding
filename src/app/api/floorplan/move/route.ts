@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureSchema, fetchCustomEmployees, fetchOverrides, pool } from "@/lib/db";
+import { ensureSchema, fetchCustomEmployees, fetchOverrides, fetchRoomNames, pool } from "@/lib/db";
 import { allNames, effectiveRooms, getRoom, homeRoomId } from "@/lib/floorplan";
 
 export const runtime = "nodejs";
@@ -44,8 +44,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const overrides = await fetchOverrides();
-    return NextResponse.json({ ok: true, rooms: effectiveRooms(overrides, custom), names });
+    const [overrides, roomNames] = await Promise.all([fetchOverrides(), fetchRoomNames()]);
+    return NextResponse.json({ ok: true, rooms: effectiveRooms(overrides, custom, roomNames), names });
   } catch (err) {
     console.error("POST /api/floorplan/move failed", err);
     return NextResponse.json({ error: "Failed to move team member" }, { status: 500 });
