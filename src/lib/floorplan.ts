@@ -167,7 +167,7 @@ export const ROOMS: Room[] = [
   { id: "1", name: "1 - A1 / YNM", employeeNumbers: [30, 121, 123, 124] },
 ];
 
-export type PresenceStatus = "present" | "break" | "absent";
+export type PresenceStatus = "present" | "break" | "absent" | "not_started";
 export type NoteCategory = "follow_up" | "hr" | null;
 
 export function getRoom(roomId: string): Room | undefined {

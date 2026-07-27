@@ -19,7 +19,7 @@ function esc(s: string): string {
 
 export function buildEmailBody(walk: WalkRow, entries: EntryRow[]): { html: string; text: string } {
   const notes = entries.filter((e) => e.note && e.note.trim().length > 0);
-  const counts = { present: 0, break: 0, absent: 0 };
+  const counts = { present: 0, break: 0, absent: 0, not_started: 0 };
   for (const e of entries) {
     if (e.presence in counts) counts[e.presence as keyof typeof counts]++;
   }
@@ -42,7 +42,7 @@ export function buildEmailBody(walk: WalkRow, entries: EntryRow[]): { html: stri
     `Floor walk #${walk.id} completed by ${walk.walker}`,
     `${when}`,
     ``,
-    `Summary: ${entries.length} people checked | ${counts.present} present | ${counts.break} on break | ${counts.absent} absent`,
+    `Summary: ${entries.length} people checked | ${counts.present} present | ${counts.break} on break | ${counts.absent} absent | ${counts.not_started} shift not started`,
     ``,
     `NOTES & FOLLOW-UPS`,
     noteLinesText,
@@ -75,7 +75,8 @@ export function buildEmailBody(walk: WalkRow, entries: EntryRow[]): { html: stri
       <strong>${entries.length}</strong> people checked &nbsp;|&nbsp;
       <span style="color:#15803d;"><strong>${counts.present}</strong> present</span> &nbsp;|&nbsp;
       <span style="color:#b45309;"><strong>${counts.break}</strong> on break</span> &nbsp;|&nbsp;
-      <span style="color:#b91c1c;"><strong>${counts.absent}</strong> absent</span>
+      <span style="color:#b91c1c;"><strong>${counts.absent}</strong> absent</span> &nbsp;|&nbsp;
+      <span style="color:#475569;"><strong>${counts.not_started}</strong> shift not started</span>
     </p>
     <h3 style="margin:16px 0 8px;color:#b91c1c;">Notes &amp; follow-ups</h3>
     <table style="border-collapse:collapse;width:100%;font-size:14px;">${noteRowsHtml}</table>

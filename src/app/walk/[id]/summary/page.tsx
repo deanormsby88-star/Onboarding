@@ -26,6 +26,7 @@ const PRESENCE_LABEL: Record<string, string> = {
   present: "Present",
   break: "On break",
   absent: "Absent",
+  not_started: "Shift not started",
 };
 
 export default function SummaryPage({ params }: { params: { id: string } }) {
@@ -48,7 +49,7 @@ export default function SummaryPage({ params }: { params: { id: string } }) {
   useEffect(load, [params.id]);
 
   const counts = useMemo(() => {
-    const c = { present: 0, break: 0, absent: 0 };
+    const c = { present: 0, break: 0, absent: 0, not_started: 0 };
     for (const e of entries) if (e.presence in c) c[e.presence as keyof typeof c]++;
     return c;
   }, [entries]);
@@ -95,7 +96,7 @@ export default function SummaryPage({ params }: { params: { id: string } }) {
         )}
       </header>
 
-      <section className="grid grid-cols-3 gap-2 text-center">
+      <section className="grid grid-cols-4 gap-2 text-center">
         <div className="rounded-2xl bg-green-100 p-3">
           <div className="text-2xl font-bold text-green-700">{counts.present}</div>
           <div className="text-xs font-medium text-green-800">Present</div>
@@ -107,6 +108,10 @@ export default function SummaryPage({ params }: { params: { id: string } }) {
         <div className="rounded-2xl bg-red-100 p-3">
           <div className="text-2xl font-bold text-red-700">{counts.absent}</div>
           <div className="text-xs font-medium text-red-800">Absent</div>
+        </div>
+        <div className="rounded-2xl bg-slate-200 p-3">
+          <div className="text-2xl font-bold text-slate-700">{counts.not_started}</div>
+          <div className="text-xs font-medium text-slate-800">Not started</div>
         </div>
       </section>
 
@@ -162,7 +167,9 @@ export default function SummaryPage({ params }: { params: { id: string } }) {
                     ? "text-green-600"
                     : e.presence === "break"
                       ? "text-amber-600"
-                      : "text-red-600"
+                      : e.presence === "not_started"
+                        ? "text-slate-500"
+                        : "text-red-600"
                 }`}
               >
                 {PRESENCE_LABEL[e.presence] ?? e.presence}

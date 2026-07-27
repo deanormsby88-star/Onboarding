@@ -15,6 +15,7 @@ const PRESENCE_OPTIONS: { value: PresenceStatus; label: string; active: string }
   { value: "present", label: "Present", active: "bg-green-600 text-white" },
   { value: "break", label: "On break", active: "bg-amber-500 text-white" },
   { value: "absent", label: "Absent", active: "bg-red-600 text-white" },
+  { value: "not_started", label: "Shift hasn't started", active: "bg-slate-600 text-white" },
 ];
 
 export default function WalkPage({ params }: { params: { id: string } }) {
@@ -174,7 +175,7 @@ export default function WalkPage({ params }: { params: { id: string } }) {
                   </button>
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   {PRESENCE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}

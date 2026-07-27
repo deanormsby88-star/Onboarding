@@ -72,6 +72,7 @@ const PRESENCE_LABEL: Record<string, string> = {
   present: "Present",
   break: "On break",
   absent: "Absent",
+  not_started: "Shift not started",
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -111,14 +112,14 @@ export async function buildWalkPdf(walk: WalkRow, entries: EntryRow[]): Promise<
   ctx.y -= 8;
 
   // Summary counts
-  const counts = { present: 0, break: 0, absent: 0 };
+  const counts = { present: 0, break: 0, absent: 0, not_started: 0 };
   for (const e of entries) {
     if (e.presence in counts) counts[e.presence as keyof typeof counts]++;
   }
   const notes = entries.filter((e) => e.note && e.note.trim().length > 0);
   text(
     ctx,
-    `Summary: ${entries.length} people checked  |  ${counts.present} present  |  ${counts.break} on break  |  ${counts.absent} absent  |  ${notes.length} note${notes.length === 1 ? "" : "s"}`,
+    `Summary: ${entries.length} people checked  |  ${counts.present} present  |  ${counts.break} on break  |  ${counts.absent} absent  |  ${counts.not_started} shift not started  |  ${notes.length} note${notes.length === 1 ? "" : "s"}`,
     { size: 11, bold: true }
   );
   ctx.y -= 10;
@@ -156,7 +157,8 @@ export async function buildWalkPdf(walk: WalkRow, entries: EntryRow[]): Promise<
     ctx.y -= 6;
     text(ctx, sanitize(roomName), { size: 12, bold: true });
     for (const e of roomEntries) {
-      const color = e.presence === "present" ? GREEN : e.presence === "break" ? AMBER : RED;
+      const color =
+        e.presence === "present" ? GREEN : e.presence === "break" ? AMBER : e.presence === "not_started" ? MUTED : RED;
       need(ctx, 16);
       const label = PRESENCE_LABEL[e.presence] ?? e.presence;
       ctx.page.drawText(label, {
@@ -167,7 +169,7 @@ export async function buildWalkPdf(walk: WalkRow, entries: EntryRow[]): Promise<
         color,
       });
       ctx.page.drawText(`${sanitize(e.employee_name)} (#${e.employee_number})${e.note ? "  *" : ""}`, {
-        x: MARGIN + 85,
+        x: MARGIN + 100,
         y: ctx.y - 10,
         size: 9.5,
         font,

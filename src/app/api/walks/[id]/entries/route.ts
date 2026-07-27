@@ -5,7 +5,7 @@ import { employeeName, getRoom } from "@/lib/floorplan";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PRESENCE = new Set(["present", "break", "absent"]);
+const PRESENCE = new Set(["present", "break", "absent", "not_started"]);
 const CATEGORIES = new Set(["follow_up", "hr"]);
 
 // Saves all entries for one room (called when the walker taps "Next room").
