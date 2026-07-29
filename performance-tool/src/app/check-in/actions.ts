@@ -16,6 +16,21 @@ import {
   submitManager,
   submitSelf,
 } from "@/lib/checkins";
+import { db } from "@/lib/db";
+import { notifyBothSubmitted } from "@/lib/notifications";
+
+async function notifyIfBothSubmitted(checkInId: string) {
+  const checkIn = await db.checkIn.findUnique({
+    where: { id: checkInId },
+    select: { status: true },
+  });
+  if (checkIn?.status === "AWAITING_DISCUSSION") {
+    // Fire-and-forget; a mail failure never blocks a submission.
+    notifyBothSubmitted(checkInId).catch((e) =>
+      console.error("both-submitted notification failed:", e)
+    );
+  }
+}
 
 export type ActionResult = { error?: string; savedAt?: string };
 
@@ -41,7 +56,10 @@ export async function saveSelfDraftAction(
 
 export async function submitSelfAction(checkInId: string): Promise<ActionResult> {
   const result = await run((viewer) => submitSelf(checkInId, viewer));
-  if (!result.error) revalidatePath("/check-in");
+  if (!result.error) {
+    revalidatePath("/check-in");
+    await notifyIfBothSubmitted(checkInId);
+  }
   return result;
 }
 
@@ -56,7 +74,10 @@ export async function saveManagerDraftAction(
 
 export async function submitManagerAction(checkInId: string): Promise<ActionResult> {
   const result = await run((viewer) => submitManager(checkInId, viewer));
-  if (!result.error) revalidatePath("/team");
+  if (!result.error) {
+    revalidatePath("/team");
+    await notifyIfBothSubmitted(checkInId);
+  }
   return result;
 }
 
