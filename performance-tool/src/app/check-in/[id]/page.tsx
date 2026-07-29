@@ -14,9 +14,11 @@ import {
 } from "@/lib/scoring";
 import { formatWeekRange, weekLabel } from "@/lib/weeks";
 import { db } from "@/lib/db";
+import { amendmentsForCheckIn } from "@/lib/amendments";
 import { AppShell } from "@/components/app-shell";
 import {
   acknowledgeAction,
+  amendRatingAction,
   markDiscussionAction,
   promoteBlockerAction,
   reopenMissedAction,
@@ -113,6 +115,8 @@ export default async function CheckInDetailPage({
           select: { id: true, name: true },
         })
       : [];
+
+  const amendments = await amendmentsForCheckIn(checkIn.id);
 
   const narrativeBlocks: [string, string | null][] = [
     ["Win of the week", checkIn.winOfWeek],
@@ -392,6 +396,89 @@ export default async function CheckInDetailPage({
           </form>
         ) : null}
       </section>
+
+      {amendments.length > 0 || (checkIn.status === "COMPLETE" && user.role === "ADMIN") ? (
+        <section className="mt-8">
+          <h2 className="text-lg font-medium">Amendments</h2>
+          {amendments.length === 0 ? (
+            <p className="mt-2 text-sm text-gray-500">
+              No post-lock changes on this record.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {amendments.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-lg border border-amber-200 bg-amber-50/50 px-4 py-3 text-sm"
+                >
+                  <span className="font-medium">
+                    {a.changedAt.toISOString().slice(0, 10)} · {a.changedBy.name}
+                  </span>{" "}
+                  changed {a.field} from{" "}
+                  <span className="font-semibold">{a.oldValue ?? "—"}</span> to{" "}
+                  <span className="font-semibold">{a.newValue ?? "—"}</span> —{" "}
+                  {a.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+          {checkIn.status === "COMPLETE" && user.role === "ADMIN" && view.bothSubmitted ? (
+            <form
+              action={async (formData: FormData) => {
+                "use server";
+                await amendRatingAction(id, formData);
+              }}
+              className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white p-4"
+            >
+              <span className="w-full text-xs font-medium text-gray-600">
+                Amend a locked rating (the original stays on the record above)
+              </span>
+              <select
+                name="ratingId"
+                required
+                className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
+              >
+                {revealRows.flatMap(({ measure, self, manager }) =>
+                  [
+                    self ? { r: self, label: `${measure.code} self` } : null,
+                    manager ? { r: manager, label: `${measure.code} manager` } : null,
+                  ]
+                    .filter((x): x is NonNullable<typeof x> => x != null)
+                    .map(({ r, label }) => (
+                      <option key={r.id} value={r.id}>
+                        {label} (now {r.notApplicable ? "N/A" : r.rating})
+                      </option>
+                    ))
+                )}
+              </select>
+              <select
+                name="newRating"
+                required
+                defaultValue="3"
+                className="rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm"
+              >
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    → {n}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="reason"
+                required
+                placeholder="Reason (required, shown on the record)"
+                className="grow rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+              >
+                Amend
+              </button>
+            </form>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mt-8 flex flex-wrap items-center gap-3">
         {view.canMarkDiscussion ? (

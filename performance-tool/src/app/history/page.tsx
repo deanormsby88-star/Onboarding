@@ -15,7 +15,14 @@ export default async function HistoryPage() {
       <h1 className="text-2xl font-semibold">My history</h1>
       <p className="mt-1 text-sm text-gray-600">
         Every week on the record — including missed ones. Participation data
-        is performance data.
+        is performance data.{" "}
+        <a
+          href={`/api/export/${user.id}`}
+          className="text-heya-blue hover:underline"
+        >
+          Export your full record (PDF)
+        </a>
+        .
       </p>
       <CheckInList checkIns={checkIns} />
     </AppShell>

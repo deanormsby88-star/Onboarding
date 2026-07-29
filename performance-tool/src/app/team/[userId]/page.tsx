@@ -7,6 +7,8 @@ import { AppShell } from "@/components/app-shell";
 import { CheckInList } from "@/components/check-in-list";
 import { individualAnalytics } from "@/lib/analytics";
 import { IndividualAnalyticsView } from "@/components/individual-analytics";
+import { objectivesFor } from "@/lib/objectives";
+import { ObjectivesView } from "@/components/objectives-view";
 
 /** Person view: one report's full record (brief §7). */
 export default async function PersonPage({
@@ -27,7 +29,7 @@ export default async function PersonPage({
   const person = await db.user.findUnique({ where: { id: userId } });
   if (!person) notFound();
 
-  const [checkIns, scorecard, blockers, analytics] = await Promise.all([
+  const [checkIns, scorecard, blockers, analytics, objectives] = await Promise.all([
     db.checkIn.findMany({
       where: { userId },
       orderBy: [{ isoYear: "desc" }, { isoWeek: "desc" }],
@@ -39,6 +41,7 @@ export default async function PersonPage({
       orderBy: { createdAt: "asc" },
     }),
     individualAnalytics(userId),
+    objectivesFor(userId),
   ]);
 
   return (
@@ -48,7 +51,14 @@ export default async function PersonPage({
         {person.jobTitle ?? "—"} ·{" "}
         {scorecard
           ? `${scorecard.template?.name ?? "Custom scorecard"} v${scorecard.version}`
-          : "No scorecard assigned"}
+          : "No scorecard assigned"}{" "}
+        ·{" "}
+        <a
+          href={`/api/export/${person.id}`}
+          className="text-heya-blue hover:underline"
+        >
+          export record (PDF)
+        </a>
       </p>
 
       {blockers.length > 0 ? (
@@ -83,6 +93,13 @@ export default async function PersonPage({
       <section className="mt-8">
         <h2 className="text-lg font-medium">Check-ins</h2>
         <CheckInList checkIns={checkIns} />
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-lg font-medium">Development objectives</h2>
+        <div className="mt-3">
+          <ObjectivesView subjectId={person.id} objectives={objectives} />
+        </div>
       </section>
     </AppShell>
   );

@@ -47,33 +47,19 @@ export function AppShell({
             >
               My scorecard
             </Link>
+            <Link
+              href="/objectives"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              Objectives
+            </Link>
             {user.role === "ADMIN" ? (
-              <>
-                <Link
-                  href="/admin/users"
-                  className="text-sm font-medium text-heya-purple hover:underline"
-                >
-                  Users
-                </Link>
-                <Link
-                  href="/admin/templates"
-                  className="text-sm font-medium text-heya-purple hover:underline"
-                >
-                  Templates
-                </Link>
-                <Link
-                  href="/admin/assign"
-                  className="text-sm font-medium text-heya-purple hover:underline"
-                >
-                  Assign
-                </Link>
-                <Link
-                  href="/admin/calibration"
-                  className="text-sm font-medium text-heya-purple hover:underline"
-                >
-                  Calibration
-                </Link>
-              </>
+              <Link
+                href="/admin"
+                className="text-sm font-medium text-heya-purple hover:underline"
+              >
+                Admin
+              </Link>
             ) : null}
           </nav>
           <div className="flex items-center gap-3">

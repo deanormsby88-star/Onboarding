@@ -121,6 +121,27 @@ export async function setBlockerStatusAction(
   return run((viewer) => setBlockerStatus(blockerId, viewer, status, resolution));
 }
 
+export async function amendRatingAction(
+  checkInId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const user = await requireUser();
+  const { amendRating, AmendmentError } = await import("@/lib/amendments");
+  try {
+    await amendRating(
+      { id: user.id, role: user.role },
+      String(formData.get("ratingId") ?? ""),
+      Number(formData.get("newRating")),
+      String(formData.get("reason") ?? "")
+    );
+  } catch (e) {
+    if (e instanceof AmendmentError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/check-in/${checkInId}`);
+  return {};
+}
+
 export async function reopenMissedAction(
   checkInId: string,
   formData: FormData
