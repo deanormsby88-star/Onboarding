@@ -1,0 +1,493 @@
+// Heya Performance Tool — full data model.
+// Phase 1 uses users/auth; later phases use the rest. It is all designed now
+// because the audit/compliance layer (amendments, access log, locking) cannot
+// be retrofitted cheaply.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users and hierarchy
+// ---------------------------------------------------------------------------
+
+enum Role {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  // Entra object ID, bound on first sign-in (matched via email) or entered
+  // up front by an admin. Sign-in without a matching record is rejected.
+  entraObjectId String?   @unique @map("entra_object_id")
+  email         String    @unique
+  name          String
+  jobTitle      String?   @map("job_title")
+  role          Role      @default(EMPLOYEE)
+  managerId     String?   @map("manager_id") @db.Uuid
+  manager       User?     @relation("Hierarchy", fields: [managerId], references: [id])
+  reports       User[]    @relation("Hierarchy")
+  isActive      Boolean   @default(true) @map("is_active")
+  deactivatedAt DateTime? @map("deactivated_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  scorecards            Scorecard[]
+  checkIns              CheckIn[]              @relation("CheckInSubject")
+  managerCheckIns       CheckIn[]              @relation("CheckInManager")
+  blockersRaised        Blocker[]              @relation("BlockerSubject")
+  blockersOwned         Blocker[]              @relation("BlockerOwner")
+  developmentObjectives DevelopmentObjective[]
+  pips                  Pip[]                  @relation("PipSubject")
+  pipsOpened            Pip[]                  @relation("PipOpener")
+  amendmentsMade        Amendment[]
+  accessLogAsViewer     AccessLog[]            @relation("AccessViewer")
+  accessLogAsSubject    AccessLog[]            @relation("AccessSubject")
+  checkInEvents         CheckInEvent[]
+  scorecardsCreated     Scorecard[]            @relation("ScorecardCreator")
+  objectiveNotes        DevelopmentObjectiveNote[]
+
+  @@index([managerId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Scorecard templates (reusable per role family)
+// ---------------------------------------------------------------------------
+
+// The four perspectives are fixed across all roles so scores stay comparable.
+enum PerspectiveKind {
+  DELIVERY_QUALITY
+  CLIENT_STAKEHOLDER
+  COMMERCIAL_EFFICIENCY
+  PEOPLE_GROWTH
+}
+
+model ScorecardTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  perspectives TemplatePerspective[]
+  scorecards   Scorecard[]
+
+  @@map("scorecard_templates")
+}
+
+model TemplatePerspective {
+  id         String            @id @default(uuid()) @db.Uuid
+  templateId String            @map("template_id") @db.Uuid
+  template   ScorecardTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  kind       PerspectiveKind
+  // Percentage 0-100; the four perspectives of a template must sum to 100
+  // (enforced in the service layer where the template is saved).
+  weightPct  Int               @map("weight_pct")
+  sortOrder  Int               @map("sort_order")
+
+  measures TemplateMeasure[]
+
+  @@unique([templateId, kind])
+  @@map("template_perspectives")
+}
+
+model TemplateMeasure {
+  id            String              @id @default(uuid()) @db.Uuid
+  perspectiveId String              @map("perspective_id") @db.Uuid
+  perspective   TemplatePerspective @relation(fields: [perspectiveId], references: [id], onDelete: Cascade)
+  code          String // e.g. "1.1", stable label within the template
+  name          String
+  definition    String
+  // The "what a 3 looks like" anchor, shown inline at rating time.
+  anchor3       String              @map("anchor_3")
+  // Relative weight within the perspective. Defaults to equal (1).
+  weight        Int                 @default(1)
+  sortOrder     Int                 @map("sort_order")
+
+  @@map("template_measures")
+}
+
+// ---------------------------------------------------------------------------
+// Scorecard instances (assigned to one person, versioned)
+// ---------------------------------------------------------------------------
+
+model Scorecard {
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @map("user_id") @db.Uuid
+  user          User               @relation(fields: [userId], references: [id])
+  // The template it was copied from, if any. Editing a template never
+  // rewrites an instance; instances own their perspectives and measures.
+  templateId    String?            @map("template_id") @db.Uuid
+  template      ScorecardTemplate? @relation(fields: [templateId], references: [id])
+  version       Int
+  effectiveFrom DateTime           @map("effective_from") @db.Date
+  // Null while this version is live; set when a new version supersedes it.
+  effectiveTo   DateTime?          @map("effective_to") @db.Date
+  createdById   String             @map("created_by_id") @db.Uuid
+  createdBy     User               @relation("ScorecardCreator", fields: [createdById], references: [id])
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  perspectives ScorecardPerspective[]
+  checkIns     CheckIn[]
+
+  @@unique([userId, version])
+  @@index([userId, effectiveFrom])
+  @@map("scorecards")
+}
+
+model ScorecardPerspective {
+  id          String          @id @default(uuid()) @db.Uuid
+  scorecardId String          @map("scorecard_id") @db.Uuid
+  scorecard   Scorecard       @relation(fields: [scorecardId], references: [id], onDelete: Cascade)
+  kind        PerspectiveKind
+  weightPct   Int             @map("weight_pct")
+  sortOrder   Int             @map("sort_order")
+
+  measures ScorecardMeasure[]
+
+  @@unique([scorecardId, kind])
+  @@map("scorecard_perspectives")
+}
+
+model ScorecardMeasure {
+  id            String               @id @default(uuid()) @db.Uuid
+  perspectiveId String               @map("perspective_id") @db.Uuid
+  perspective   ScorecardPerspective @relation(fields: [perspectiveId], references: [id], onDelete: Cascade)
+  code          String
+  name          String
+  definition    String
+  anchor3       String               @map("anchor_3")
+  weight        Int                  @default(1)
+  sortOrder     Int                  @map("sort_order")
+
+  ratings     MeasureRating[]
+  pipMeasures PipMeasure[]
+
+  @@map("scorecard_measures")
+}
+
+// ---------------------------------------------------------------------------
+// Check-ins
+// ---------------------------------------------------------------------------
+
+enum CheckInType {
+  WEEKLY
+  PROBATION_REVIEW
+  PIP_REVIEW
+}
+
+enum CheckInStatus {
+  NOT_STARTED
+  SELF_IN_PROGRESS
+  AWAITING_MANAGER
+  AWAITING_DISCUSSION
+  AWAITING_ACKNOWLEDGEMENT
+  COMPLETE
+  MISSED
+}
+
+model CheckIn {
+  id          String        @id @default(uuid()) @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  user        User          @relation("CheckInSubject", fields: [userId], references: [id])
+  // Snapshot of who the manager rater is for this check-in, taken when the
+  // check-in is created, so a later re-org does not rewrite history.
+  managerId   String        @map("manager_id") @db.Uuid
+  manager     User          @relation("CheckInManager", fields: [managerId], references: [id])
+  scorecardId String        @map("scorecard_id") @db.Uuid
+  scorecard   Scorecard     @relation(fields: [scorecardId], references: [id])
+  // ISO week, Monday-Sunday, e.g. year 2026 week 31 -> "2026-W31".
+  isoYear     Int           @map("iso_year")
+  isoWeek     Int           @map("iso_week")
+  type        CheckInType   @default(WEEKLY)
+  status      CheckInStatus @default(NOT_STARTED)
+
+  // Employee narrative fields
+  winOfWeek     String? @map("win_of_week")
+  focusNextWeek String? @map("focus_next_week")
+  inTheWay      String? @map("in_the_way")
+  supportNeeded String? @map("support_needed")
+
+  // Manager narrative fields
+  coachingNote     String? @map("coaching_note")
+  agreedPriorities String? @map("agreed_priorities")
+
+  selfSubmittedAt    DateTime? @map("self_submitted_at")
+  managerSubmittedAt DateTime? @map("manager_submitted_at")
+  discussionHeldAt   DateTime? @map("discussion_held_at")
+  acknowledgedAt     DateTime? @map("acknowledged_at")
+
+  pipId String? @map("pip_id") @db.Uuid
+  pip   Pip?    @relation(fields: [pipId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  ratings    MeasureRating[]
+  blockers   Blocker[]
+  events     CheckInEvent[]
+  pipReviews PipReview[]
+
+  @@unique([userId, isoYear, isoWeek, type])
+  @@index([managerId, status])
+  @@index([isoYear, isoWeek])
+  @@map("check_ins")
+}
+
+// Every status transition, timestamped with the acting user (null actor for
+// system transitions such as the Sunday 23:59 missed-week job).
+model CheckInEvent {
+  id         String         @id @default(uuid()) @db.Uuid
+  checkInId  String         @map("check_in_id") @db.Uuid
+  checkIn    CheckIn        @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  fromStatus CheckInStatus? @map("from_status")
+  toStatus   CheckInStatus  @map("to_status")
+  actorId    String?        @map("actor_id") @db.Uuid
+  actor      User?          @relation(fields: [actorId], references: [id])
+  note       String?
+  at         DateTime       @default(now())
+
+  @@index([checkInId])
+  @@map("check_in_events")
+}
+
+enum RaterKind {
+  SELF
+  MANAGER
+}
+
+model MeasureRating {
+  id        String           @id @default(uuid()) @db.Uuid
+  checkInId String           @map("check_in_id") @db.Uuid
+  checkIn   CheckIn          @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+  measureId String           @map("measure_id") @db.Uuid
+  measure   ScorecardMeasure @relation(fields: [measureId], references: [id])
+  rater     RaterKind
+  // 1-5, null when notApplicable. Comment required at 1, 2 and 5 (service
+  // layer validation).
+  rating        Int?
+  notApplicable Boolean @default(false) @map("not_applicable")
+  naReason      String? @map("na_reason")
+  comment       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([checkInId, measureId, rater])
+  @@map("measure_ratings")
+}
+
+// ---------------------------------------------------------------------------
+// Blockers
+// ---------------------------------------------------------------------------
+
+enum BlockerStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DROPPED
+}
+
+model Blocker {
+  id          String        @id @default(uuid()) @db.Uuid
+  // The person whose check-in raised it.
+  userId      String        @map("user_id") @db.Uuid
+  user        User          @relation("BlockerSubject", fields: [userId], references: [id])
+  checkInId   String?       @map("check_in_id") @db.Uuid
+  checkIn     CheckIn?      @relation(fields: [checkInId], references: [id])
+  description String
+  ownerId     String?       @map("owner_id") @db.Uuid
+  owner       User?         @relation("BlockerOwner", fields: [ownerId], references: [id])
+  targetDate  DateTime?     @map("target_date") @db.Date
+  status      BlockerStatus @default(OPEN)
+  resolution  String?
+  resolvedAt  DateTime?     @map("resolved_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([ownerId, status])
+  @@index([userId])
+  @@map("blockers")
+}
+
+// ---------------------------------------------------------------------------
+// Development objectives
+// ---------------------------------------------------------------------------
+
+enum ObjectiveStatus {
+  ACTIVE
+  ACHIEVED
+  DROPPED
+}
+
+model DevelopmentObjective {
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @map("user_id") @db.Uuid
+  user       User            @relation(fields: [userId], references: [id])
+  title      String
+  detail     String?
+  status     ObjectiveStatus @default(ACTIVE)
+  targetDate DateTime?       @map("target_date") @db.Date
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  notes DevelopmentObjectiveNote[]
+
+  @@index([userId, status])
+  @@map("development_objectives")
+}
+
+model DevelopmentObjectiveNote {
+  id          String               @id @default(uuid()) @db.Uuid
+  objectiveId String               @map("objective_id") @db.Uuid
+  objective   DevelopmentObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  authorId    String               @map("author_id") @db.Uuid
+  author      User                 @relation(fields: [authorId], references: [id])
+  note        String
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  @@map("development_objective_notes")
+}
+
+// ---------------------------------------------------------------------------
+// PIPs — built to stand up in a CCMA process. The record must show the
+// employee knew the standard, had a fair opportunity to meet it, and was
+// given appropriate support.
+// ---------------------------------------------------------------------------
+
+enum PipStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+model Pip {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  user             User      @relation("PipSubject", fields: [userId], references: [id])
+  openedById       String    @map("opened_by_id") @db.Uuid
+  openedBy         User      @relation("PipOpener", fields: [openedById], references: [id])
+  status           PipStatus @default(DRAFT)
+  // The standard required, stated explicitly.
+  standardRequired String    @map("standard_required")
+  startDate        DateTime  @map("start_date") @db.Date
+  endDate          DateTime? @map("end_date") @db.Date
+  finalOutcome     String?   @map("final_outcome")
+  outcomeReasoning String?   @map("outcome_reasoning")
+  closedAt         DateTime? @map("closed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  measures       PipMeasure[]
+  supportActions PipSupportAction[]
+  reviews        PipReview[]
+  checkIns       CheckIn[]
+
+  @@index([userId])
+  @@map("pips")
+}
+
+// Which specific scorecard measures are falling short.
+model PipMeasure {
+  id        String           @id @default(uuid()) @db.Uuid
+  pipId     String           @map("pip_id") @db.Uuid
+  pip       Pip              @relation(fields: [pipId], references: [id], onDelete: Cascade)
+  measureId String           @map("measure_id") @db.Uuid
+  measure   ScorecardMeasure @relation(fields: [measureId], references: [id])
+  shortfall String
+
+  @@unique([pipId, measureId])
+  @@map("pip_measures")
+}
+
+enum SupportActionType {
+  TRAINING
+  GUIDANCE
+  COUNSELLING
+  OTHER
+}
+
+model PipSupportAction {
+  id          String            @id @default(uuid()) @db.Uuid
+  pipId       String            @map("pip_id") @db.Uuid
+  pip         Pip               @relation(fields: [pipId], references: [id], onDelete: Cascade)
+  type        SupportActionType
+  description String
+  providedAt  DateTime          @map("provided_at") @db.Date
+
+  @@map("pip_support_actions")
+}
+
+model PipReview {
+  id         String   @id @default(uuid()) @db.Uuid
+  pipId      String   @map("pip_id") @db.Uuid
+  pip        Pip      @relation(fields: [pipId], references: [id], onDelete: Cascade)
+  // Linked to a check-in so the evidence chain is unbroken.
+  checkInId  String?  @map("check_in_id") @db.Uuid
+  checkIn    CheckIn? @relation(fields: [checkInId], references: [id])
+  reviewDate DateTime @map("review_date") @db.Date
+  outcome    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("pip_reviews")
+}
+
+// ---------------------------------------------------------------------------
+// Audit: amendments and access log
+// ---------------------------------------------------------------------------
+
+// Post-lock changes. The original value is never destroyed; amendments are
+// shown on the record itself, not hidden in an admin log.
+model Amendment {
+  id          String   @id @default(uuid()) @db.Uuid
+  entityType  String   @map("entity_type") // e.g. "check_in", "measure_rating"
+  entityId    String   @map("entity_id") @db.Uuid
+  field       String
+  oldValue    String?  @map("old_value")
+  newValue    String?  @map("new_value")
+  reason      String
+  changedById String   @map("changed_by_id") @db.Uuid
+  changedBy   User     @relation(fields: [changedById], references: [id])
+  changedAt   DateTime @default(now()) @map("changed_at")
+
+  @@index([entityType, entityId])
+  @@map("amendments")
+}
+
+// POPIA accountability: every read of another person's performance data.
+model AccessLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  viewerId      String   @map("viewer_id") @db.Uuid
+  viewer        User     @relation("AccessViewer", fields: [viewerId], references: [id])
+  subjectUserId String   @map("subject_user_id") @db.Uuid
+  subjectUser   User     @relation("AccessSubject", fields: [subjectUserId], references: [id])
+  entity        String // e.g. "check_in_history", "analytics", "export_pdf"
+  entityId      String?  @map("entity_id") @db.Uuid
+  at            DateTime @default(now())
+
+  @@index([subjectUserId, at])
+  @@index([viewerId, at])
+  @@map("access_log")
+}
+
+// ---------------------------------------------------------------------------
+// Configuration (notification schedule, retention) — config-driven, not
+// hardcoded. Seeded with defaults, editable by admins in a later phase.
+// ---------------------------------------------------------------------------
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

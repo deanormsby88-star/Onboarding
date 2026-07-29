@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  /* Heya brand — used with discipline. Self = blue, manager = purple,
+     everywhere, without exception. */
+  --color-heya-blue: #3d7cc9;
+  --color-heya-blue-dark: #2f61a0;
+  --color-heya-green: #3bb54a;
+  --color-heya-purple: #8b3daf;
+
+  --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Tabular figures so score columns align. */
+  font-variant-numeric: tabular-nums;
+}
