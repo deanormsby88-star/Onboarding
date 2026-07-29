@@ -18,6 +18,24 @@ export function AppShell({
               Heya Performance
             </Link>
             <Link
+              href="/check-in"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              This week
+            </Link>
+            <Link
+              href="/team"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              My team
+            </Link>
+            <Link
+              href="/history"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              History
+            </Link>
+            <Link
               href="/scorecard"
               className="text-sm font-medium text-gray-600 hover:underline"
             >

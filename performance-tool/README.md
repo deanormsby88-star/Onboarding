@@ -7,21 +7,30 @@ manager; the tool tracks both scores and the gap between them over time.
 Built to the build brief (`docs/build-brief.md`) and seeded from
 `docs/scorecard-templates.md`.
 
-## Status: Phase 1 — Foundations ✅ (at gate)
+## Status
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Schema, migrations, Entra ID SSO, users & hierarchy, server-side RBAC, seed users | **Done — awaiting gate sign-off** |
-| 2 | Template builder, four seeded templates, assignment, versioning | Not started |
-| 3 | Check-in flow: blind scoring, state machine, sign-off, blockers | Not started |
+| 2 | Template builder, four seeded templates, assignment, versioning | **Done — awaiting gate sign-off** |
+| 3 | Check-in flow: blind scoring, state machine, sign-off, blockers | **Done — awaiting gate sign-off** |
 | 4 | Seeded history data | Not started |
 | 5 | Analytics | Not started |
 | 6 | Notifications (Graph API) | Not started |
 | 7 | Compliance layer: PDF export, PIPs, amendments UI, access log view | Not started |
 
-The Phase 1 gate: Dean signs in, sees the three test users, confirms the
-permission boundaries hold. The landing page lists exactly the records the
-signed-in user may see, straight from the data-access layer.
+Gate walkthroughs: Phase 1 — sign in as Dean (admin home lists every record
+the viewer may see, straight from the data-access layer). Phase 2 — build a
+template at /admin/templates and assign it at /admin/assign. Phase 3 — run a
+full week end to end with two real people: self-rate, manager-rate (blind
+both ways), reveal, conversation, acknowledge, lock.
+
+### The weekly close-out job
+
+Missed weeks are set by `POST /api/jobs/close-week` with
+`Authorization: Bearer $CRON_SECRET` — schedule it for early Monday SAST
+(it closes the week that just ended). Reopening a missed week is admin-only
+from the check-in page and writes the amendment trail.
 
 ## Stack
 

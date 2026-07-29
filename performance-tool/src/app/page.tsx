@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/current-user";
 import { visibleUserIds } from "@/lib/authz";
 import { db } from "@/lib/db";
@@ -10,13 +11,17 @@ const roleLabel = {
 } as const;
 
 /**
- * Phase 1 landing page: shows who you are and exactly whose records you can
- * see, straight from the data-access layer — the screen used to verify the
- * permission boundaries at the Phase 1 gate. Replaced by "This week" /
- * "My team" in Phase 3.
+ * Landing router (brief §7): employees land on their self-evaluation,
+ * managers on My team. Admins get this org overview, which doubles as the
+ * Phase 1 permission-boundary verification screen.
  */
 export default async function HomePage() {
   const user = await requireUser();
+  if (user.role !== "ADMIN") {
+    const hasReports =
+      (await db.user.count({ where: { managerId: user.id, isActive: true } })) > 0;
+    redirect(hasReports ? "/team" : "/check-in");
+  }
   const ids = await visibleUserIds(user);
   const visible = await db.user.findMany({
     where: ids === null ? {} : { id: { in: ids } },
