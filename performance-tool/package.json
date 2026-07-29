@@ -10,6 +10,7 @@
     "test": "vitest run",
     "migrate": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
+    "seed:history": "tsx prisma/seed-history.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
