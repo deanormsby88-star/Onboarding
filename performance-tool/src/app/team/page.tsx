@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { STATUS_LABEL } from "@/lib/checkins";
 import { currentIsoWeek, formatWeekRange, weekLabel } from "@/lib/weeks";
 import { AppShell } from "@/components/app-shell";
+import { teamAnalytics } from "@/lib/analytics";
+import { TeamAnalyticsView } from "@/components/team-analytics";
 
 /** Manager landing page: one row per direct report (brief §7). */
 export default async function TeamPage() {
@@ -23,6 +25,7 @@ export default async function TeamPage() {
     },
   });
   if (reports.length === 0) redirect("/check-in");
+  const analytics = await teamAnalytics(user.id);
 
   return (
     <AppShell user={user}>
@@ -110,6 +113,8 @@ export default async function TeamPage() {
           </tbody>
         </table>
       </div>
+
+      <TeamAnalyticsView team={analytics} />
     </AppShell>
   );
 }

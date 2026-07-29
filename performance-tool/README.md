@@ -14,8 +14,8 @@ Built to the build brief (`docs/build-brief.md`) and seeded from
 | 1 | Schema, migrations, Entra ID SSO, users & hierarchy, server-side RBAC, seed users | **Done — awaiting gate sign-off** |
 | 2 | Template builder, four seeded templates, assignment, versioning | **Done — awaiting gate sign-off** |
 | 3 | Check-in flow: blind scoring, state machine, sign-off, blockers | **Done — awaiting gate sign-off** |
-| 4 | Seeded history data | Not started |
-| 5 | Analytics | Not started |
+| 4 | Seeded history data | **Done** (`npm run seed:history`) |
+| 5 | Analytics: individual, team, calibration | **Done — awaiting gate sign-off** |
 | 6 | Notifications (Graph API) | Not started |
 | 7 | Compliance layer: PDF export, PIPs, amendments UI, access log view | Not started |
 

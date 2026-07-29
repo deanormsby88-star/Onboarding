@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { getLiveScorecard } from "@/lib/scorecards";
 import { AppShell } from "@/components/app-shell";
 import { CheckInList } from "@/components/check-in-list";
+import { individualAnalytics } from "@/lib/analytics";
+import { IndividualAnalyticsView } from "@/components/individual-analytics";
 
 /** Person view: one report's full record (brief §7). */
 export default async function PersonPage({
@@ -25,7 +27,7 @@ export default async function PersonPage({
   const person = await db.user.findUnique({ where: { id: userId } });
   if (!person) notFound();
 
-  const [checkIns, scorecard, blockers] = await Promise.all([
+  const [checkIns, scorecard, blockers, analytics] = await Promise.all([
     db.checkIn.findMany({
       where: { userId },
       orderBy: [{ isoYear: "desc" }, { isoWeek: "desc" }],
@@ -36,6 +38,7 @@ export default async function PersonPage({
       include: { owner: { select: { name: true } } },
       orderBy: { createdAt: "asc" },
     }),
+    individualAnalytics(userId),
   ]);
 
   return (
@@ -71,6 +74,13 @@ export default async function PersonPage({
       ) : null}
 
       <section className="mt-6">
+        <h2 className="text-lg font-medium">Progress</h2>
+        <div className="mt-3">
+          <IndividualAnalyticsView data={analytics} />
+        </div>
+      </section>
+
+      <section className="mt-8">
         <h2 className="text-lg font-medium">Check-ins</h2>
         <CheckInList checkIns={checkIns} />
       </section>

@@ -36,6 +36,12 @@ export function AppShell({
               History
             </Link>
             <Link
+              href="/progress"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              My progress
+            </Link>
+            <Link
               href="/scorecard"
               className="text-sm font-medium text-gray-600 hover:underline"
             >
@@ -60,6 +66,12 @@ export function AppShell({
                   className="text-sm font-medium text-heya-purple hover:underline"
                 >
                   Assign
+                </Link>
+                <Link
+                  href="/admin/calibration"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Calibration
                 </Link>
               </>
             ) : null}
