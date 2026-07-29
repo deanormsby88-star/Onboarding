@@ -16,8 +16,14 @@ Built to the build brief (`docs/build-brief.md`) and seeded from
 | 3 | Check-in flow: blind scoring, state machine, sign-off, blockers | **Done — awaiting gate sign-off** |
 | 4 | Seeded history data | **Done** (`npm run seed:history`) |
 | 5 | Analytics: individual, team, calibration | **Done — awaiting gate sign-off** |
-| 6 | Notifications (Graph API) | Not started |
-| 7 | Compliance layer: PDF export, PIPs, amendments UI, access log view | Not started |
+| 6 | Notifications (Graph API, config-driven) | **Done** |
+| 7 | Compliance layer: PDF export, PIPs, amendments, access log, retention | **Done** |
+
+All seven phases are built; gates 1, 2, 3 and 5 await Dean's sign-off (the
+Phase 3 run-a-real-week gate is the make-or-break one). Scheduled jobs to
+wire up in Azure, both with `Authorization: Bearer $CRON_SECRET`: hourly
+`POST /api/jobs/notifications`, and `POST /api/jobs/close-week` early
+Monday SAST.
 
 Gate walkthroughs: Phase 1 — sign in as Dean (admin home lists every record
 the viewer may see, straight from the data-access layer). Phase 2 — build a
