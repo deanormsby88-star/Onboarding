@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { SEED_TEMPLATES } from "./template-data";
 
 const db = new PrismaClient();
 
@@ -68,6 +69,39 @@ async function main() {
     update: {},
     create: { key: "retention_years_after_exit", value: "5" },
   });
+
+  // The four opening templates (idempotent by name; existing templates are
+  // left alone so in-app edits survive re-seeding).
+  for (const tpl of SEED_TEMPLATES) {
+    const exists = await db.scorecardTemplate.findFirst({
+      where: { name: tpl.name },
+    });
+    if (exists) continue;
+    await db.scorecardTemplate.create({
+      data: {
+        name: tpl.name,
+        description: tpl.description || null,
+        perspectives: {
+          create: tpl.perspectives.map((p, pi) => ({
+            kind: p.kind,
+            weightPct: p.weightPct,
+            sortOrder: pi,
+            measures: {
+              create: p.measures.map((m, mi) => ({
+                code: m.code,
+                name: m.name,
+                definition: m.definition,
+                anchor3: m.anchor3,
+                weight: m.weight,
+                sortOrder: mi,
+              })),
+            },
+          })),
+        },
+      },
+    });
+    console.log(`Seeded template: ${tpl.name}`);
+  }
 
   console.log("Seeded: Dean Ormsby (admin), Thandi Test-Manager, Eli Test-Employee.");
 }

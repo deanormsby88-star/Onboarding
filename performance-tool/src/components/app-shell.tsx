@@ -17,13 +17,33 @@ export function AppShell({
             <Link href="/" className="font-semibold text-heya-blue">
               Heya Performance
             </Link>
+            <Link
+              href="/scorecard"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              My scorecard
+            </Link>
             {user.role === "ADMIN" ? (
-              <Link
-                href="/admin/users"
-                className="text-sm font-medium text-heya-purple hover:underline"
-              >
-                Users
-              </Link>
+              <>
+                <Link
+                  href="/admin/users"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Users
+                </Link>
+                <Link
+                  href="/admin/templates"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Templates
+                </Link>
+                <Link
+                  href="/admin/assign"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Assign
+                </Link>
+              </>
             ) : null}
           </nav>
           <div className="flex items-center gap-3">
