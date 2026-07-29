@@ -8,8 +8,11 @@ import { runDueNotifications } from "@/lib/notifications";
  *
  * Which rules fire is decided by the config-driven schedule (Admin →
  * app_settings.notification_schedule), evaluated in SAST.
+ *
+ * Vercel cron invokes with GET and supplies the same Authorization header
+ * automatically from the CRON_SECRET env var; both methods are accepted.
  */
-export async function POST(request: Request) {
+async function handle(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorised" }, { status: 401 });
@@ -17,3 +20,5 @@ export async function POST(request: Request) {
   const summary = await runDueNotifications();
   return NextResponse.json({ ran: Object.keys(summary), summary });
 }
+
+export { handle as GET, handle as POST };

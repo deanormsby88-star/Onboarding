@@ -1,0 +1,7 @@
+{
+  "regions": ["cpt1"],
+  "crons": [
+    { "path": "/api/jobs/notifications", "schedule": "0 * * * *" },
+    { "path": "/api/jobs/close-week", "schedule": "10 22 * * 0" }
+  ]
+}

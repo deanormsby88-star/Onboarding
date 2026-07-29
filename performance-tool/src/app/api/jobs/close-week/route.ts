@@ -10,8 +10,11 @@ import { currentIsoWeek, previousWeek, weekLabel } from "@/lib/weeks";
  *   curl -X POST -H "Authorization: Bearer $CRON_SECRET" .../api/jobs/close-week
  *
  * Optional ?week=2026-W31 closes a specific week instead.
+ *
+ * Vercel cron invokes with GET and supplies the same Authorization header
+ * automatically from the CRON_SECRET env var; both methods are accepted.
  */
-export async function POST(request: Request) {
+async function handle(request: Request) {
   const secret = process.env.CRON_SECRET;
   const header = request.headers.get("authorization");
   if (!secret || header !== `Bearer ${secret}`) {
@@ -35,3 +38,5 @@ export async function POST(request: Request) {
   const { missed } = await closeOutWeek(week);
   return NextResponse.json({ week: weekLabel(week), missed });
 }
+
+export { handle as GET, handle as POST };
