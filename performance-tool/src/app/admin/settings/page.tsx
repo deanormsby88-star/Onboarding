@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/current-user";
 import { db } from "@/lib/db";
 import { DEFAULT_SCHEDULE, loadSchedule, type Schedule } from "@/lib/notifications";
+import { deleteDelegatedConnection, getDelegatedConnection } from "@/lib/mail";
 import { AppShell } from "@/components/app-shell";
 
 const RULE_LABEL: Record<string, string> = {
@@ -39,12 +40,19 @@ async function saveSettings(formData: FormData) {
   revalidatePath("/admin/settings");
 }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mail?: string; mail_error?: string }>;
+}) {
   const admin = await requireAdmin();
   const schedule = await loadSchedule();
   const retention = await db.appSetting.findUnique({
     where: { key: "retention_years_after_exit" },
   });
+  const mailConnection = await getDelegatedConnection();
+  const appOnlyMail = Boolean(process.env.GRAPH_CLIENT_ID && process.env.GRAPH_SENDER);
+  const { mail, mail_error } = await searchParams;
 
   return (
     <AppShell user={admin}>
@@ -53,6 +61,67 @@ export default async function SettingsPage() {
         Notification cadence (SAST — the runner fires on the hour) and
         retention. Config, not code: tune it once the tool is live.
       </p>
+
+      <section className="mt-6 max-w-2xl rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+          Notification mailbox
+        </h2>
+        {mail === "connected" ? (
+          <p className="mt-2 rounded-md bg-green-50 p-2 text-sm text-heya-green">
+            Mailbox connected.
+          </p>
+        ) : null}
+        {mail_error ? (
+          <p className="mt-2 rounded-md bg-red-50 p-2 text-sm text-red-700">
+            Connection failed: {mail_error}
+          </p>
+        ) : null}
+        {appOnlyMail ? (
+          <p className="mt-2 text-sm text-gray-600">
+            Sending via the app-only Graph configuration (
+            {process.env.GRAPH_SENDER}). The connected-mailbox fallback below
+            is not used while that is configured.
+          </p>
+        ) : null}
+        {mailConnection ? (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p>
+              Sending as <strong>{mailConnection.email}</strong>
+              <span className="text-gray-500">
+                {" "}
+                — connected by {mailConnection.connectedByName} on{" "}
+                {mailConnection.connectedAt.slice(0, 10)}
+              </span>
+            </p>
+            <form
+              action={async () => {
+                "use server";
+                await requireAdmin();
+                await deleteDelegatedConnection();
+                revalidatePath("/admin/settings");
+              }}
+            >
+              <button type="submit" className="text-gray-500 hover:underline">
+                Disconnect
+              </button>
+            </form>
+          </div>
+        ) : (
+          <div className="mt-2 text-sm text-gray-600">
+            <p>
+              No mailbox connected — notification emails are currently
+              skipped. Connect a mailbox to send them as you (you can switch
+              to a neutral shared mailbox later without losing anything).
+            </p>
+            <a
+              href="/api/mail-connect/start"
+              className="mt-3 inline-block rounded-md bg-heya-blue px-4 py-2 text-sm font-medium text-white hover:bg-heya-blue-dark"
+            >
+              Connect mailbox
+            </a>
+          </div>
+        )}
+      </section>
 
       <form action={saveSettings} className="mt-6 max-w-2xl space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-5">
