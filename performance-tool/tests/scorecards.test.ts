@@ -112,7 +112,26 @@ describe("templateInputSchema", () => {
     expect(templateInputSchema.safeParse(tpl).success).toBe(false);
   });
 
-  it("the four seed templates are all valid", () => {
+  it("accepts a template with a section removed, as long as weights re-sum to 100", () => {
+    const tpl = validTemplate("three-sections");
+    tpl.perspectives = tpl.perspectives.slice(0, 3);
+    tpl.perspectives[0]!.weightPct = 50;
+    tpl.perspectives[1]!.weightPct = 30;
+    tpl.perspectives[2]!.weightPct = 20;
+    expect(templateInputSchema.safeParse(tpl).success).toBe(true);
+  });
+
+  it("rejects an empty template and duplicate sections", () => {
+    const empty = validTemplate("empty");
+    empty.perspectives = [];
+    expect(templateInputSchema.safeParse(empty).success).toBe(false);
+
+    const dupes = validTemplate("dupes");
+    dupes.perspectives[1]! = { ...dupes.perspectives[0]!, weightPct: 20 };
+    expect(templateInputSchema.safeParse(dupes).success).toBe(false);
+  });
+
+  it("all seed templates are valid", () => {
     for (const tpl of SEED_TEMPLATES) {
       const result = templateInputSchema.safeParse(tpl);
       expect(result.success, `${tpl.name}: ${result.error?.message}`).toBe(true);

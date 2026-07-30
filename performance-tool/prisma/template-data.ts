@@ -312,6 +312,103 @@ export const SEED_TEMPLATES: TemplateInput[] = [
     ],
   },
   {
+    name: "Software Developer",
+    description:
+      "Reports to COO. Builds and maintains Heya's internal tools. Opening draft.",
+    perspectives: [
+      {
+        kind: "DELIVERY_QUALITY",
+        weightPct: 40,
+        measures: [
+          m(
+            "5.1",
+            "Delivery against commitments",
+            "Agreed work delivered when promised, or re-scoped openly before the deadline.",
+            "Committed work for the period delivered or renegotiated early, never silently late."
+          ),
+          m(
+            "5.2",
+            "Defect rate and rework",
+            "Shipped work holds up in real use rather than bouncing back.",
+            "No more than one defect needing rework per release, and no issue fixed twice for the same root cause."
+          ),
+          m(
+            "5.3",
+            "Testing discipline",
+            "Changes are tested against the main flows before release, with evidence.",
+            "Every change tested before release, with what was checked recorded in the ticket or pull request."
+          ),
+          m(
+            "5.4",
+            "Documentation and handover readiness",
+            "Systems are documented well enough that Heya does not depend on one head.",
+            "Another developer could pick up any feature cold from what is written down; no undocumented critical system."
+          ),
+        ],
+      },
+      {
+        kind: "CLIENT_STAKEHOLDER",
+        weightPct: 20,
+        measures: [
+          m(
+            "5.5",
+            "Requirements understanding",
+            "Builds what the internal user actually needs, confirmed before building.",
+            "Requirements confirmed with the requester up front; no delivery bounced for missing the point."
+          ),
+          m(
+            "5.6",
+            "Progress communication",
+            "Stakeholders can see status and blockers without chasing.",
+            "The requester always knows where their work stands; delays surfaced by the developer, not discovered."
+          ),
+        ],
+      },
+      {
+        kind: "COMMERCIAL_EFFICIENCY",
+        weightPct: 15,
+        measures: [
+          m(
+            "5.7",
+            "Maintainability over cleverness",
+            "Solutions minimise future cost: consistent patterns, no one-off technology nobody else can support.",
+            "Follows the established stack and patterns; anything new agreed first and documented."
+          ),
+          m(
+            "5.8",
+            "Tooling and spend discipline",
+            "Uses what Heya already pays for before buying more; licences and services accounted for.",
+            "No new service, licence or subscription introduced without sign-off. No avoidable spend."
+          ),
+        ],
+      },
+      {
+        kind: "PEOPLE_GROWTH",
+        weightPct: 25,
+        measures: [
+          m(
+            "5.9",
+            "Security and data handling",
+            "Secrets, access control, and personal data handled to standard; risks flagged rather than absorbed.",
+            "No credentials in code or chat, access rules enforced in every feature, POPIA-sensitive data handled per standard, risks raised when spotted."
+          ),
+          m(
+            "5.10",
+            "Quality over speed",
+            "Ships properly rather than fastest. Capacity concerns raised before committing.",
+            "Nothing shipped untested or unreviewed to hit a date. When a deadline does not fit, says so before committing rather than after missing."
+          ),
+          m(
+            "5.11",
+            "Own development",
+            "Progress against the current agreed development objective.",
+            "Actively working on the objective with visible movement this period."
+          ),
+        ],
+      },
+    ],
+  },
+  {
     name: "Head of HR and Recruitment",
     description: "Reports to COO. Opening draft.",
     perspectives: [

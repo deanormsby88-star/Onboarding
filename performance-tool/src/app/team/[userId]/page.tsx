@@ -59,6 +59,18 @@ export default async function PersonPage({
         >
           export record (PDF)
         </a>
+        {scorecard ? (
+          <>
+            {" "}
+            ·{" "}
+            <a
+              href={`/api/scorecard/${person.id}/pdf`}
+              className="text-heya-blue hover:underline"
+            >
+              scorecard (PDF)
+            </a>
+          </>
+        ) : null}
       </p>
 
       {blockers.length > 0 ? (

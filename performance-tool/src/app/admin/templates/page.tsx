@@ -70,6 +70,12 @@ export default async function TemplatesPage() {
                 >
                   Edit
                 </Link>
+                <a
+                  href={`/api/templates/${t.id}/pdf`}
+                  className="text-heya-blue hover:underline"
+                >
+                  PDF
+                </a>
                 <form
                   action={async () => {
                     "use server";

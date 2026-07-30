@@ -20,7 +20,13 @@ export default async function MyScorecardPage() {
           <p className="mt-1 text-sm text-gray-600">
             {scorecard.template?.name ?? "Custom scorecard"} · version{" "}
             {scorecard.version} · in force since{" "}
-            {scorecard.effectiveFrom.toISOString().slice(0, 10)}
+            {scorecard.effectiveFrom.toISOString().slice(0, 10)} ·{" "}
+            <a
+              href={`/api/scorecard/${user.id}/pdf`}
+              className="text-heya-blue hover:underline"
+            >
+              download PDF
+            </a>
           </p>
           <div className="mt-6 space-y-6">
             {scorecard.perspectives.map((p) => (

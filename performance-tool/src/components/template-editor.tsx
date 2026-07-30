@@ -32,6 +32,36 @@ const emptyMeasure = (): EditorMeasure => ({
   weight: 1,
 });
 
+export const ALL_SECTIONS: { kind: string; label: string }[] = [
+  { kind: "DELIVERY_QUALITY", label: "Delivery and Quality" },
+  { kind: "CLIENT_STAKEHOLDER", label: "Client and Stakeholder" },
+  { kind: "COMMERCIAL_EFFICIENCY", label: "Commercial and Efficiency" },
+  { kind: "PEOPLE_GROWTH", label: "People and Growth" },
+];
+
+/** Scale the remaining weights so they sum to 100, keeping proportions. */
+function redistribute(perspectives: EditorPerspective[]): EditorPerspective[] {
+  const sum = perspectives.reduce((s, p) => s + p.weightPct, 0);
+  if (perspectives.length === 0) return perspectives;
+  if (sum <= 0) {
+    const equal = Math.floor(100 / perspectives.length);
+    return perspectives.map((p, i) => ({
+      ...p,
+      weightPct: i === 0 ? 100 - equal * (perspectives.length - 1) : equal,
+    }));
+  }
+  const scaled = perspectives.map((p) => ({
+    ...p,
+    weightPct: Math.round((p.weightPct * 100) / sum),
+  }));
+  const drift = 100 - scaled.reduce((s, p) => s + p.weightPct, 0);
+  if (drift !== 0) {
+    const biggest = scaled.reduce((a, b) => (b.weightPct > a.weightPct ? b : a));
+    biggest.weightPct += drift;
+  }
+  return scaled;
+}
+
 export function TemplateEditor({
   initial,
   onSave,
@@ -53,6 +83,24 @@ export function TemplateEditor({
         pi === i ? { ...p, ...patch } : p
       ),
     }));
+
+  const removeSection = (i: number) =>
+    setTpl((t) => ({
+      ...t,
+      perspectives: redistribute(t.perspectives.filter((_, pi) => pi !== i)),
+    }));
+
+  const addSection = (kind: string, label: string) =>
+    setTpl((t) => {
+      const order = ALL_SECTIONS.map((s) => s.kind);
+      const next = [...t.perspectives, { kind, label, weightPct: 0, measures: [] }];
+      next.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+      return { ...t, perspectives: next };
+    });
+
+  const missingSections = ALL_SECTIONS.filter(
+    (s) => !tpl.perspectives.some((p) => p.kind === s.kind)
+  );
 
   const setMeasure = (pi: number, mi: number, patch: Partial<EditorMeasure>) =>
     setTpl((t) => ({
@@ -140,20 +188,31 @@ export function TemplateEditor({
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-medium">{p.label}</h2>
-            <label className="flex items-center gap-2 text-sm">
-              Weight
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className="w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-                value={p.weightPct}
-                onChange={(e) =>
-                  setPerspective(pi, { weightPct: Number(e.target.value) })
-                }
-              />
-              %
-            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                Weight
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  className="w-20 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+                  value={p.weightPct}
+                  onChange={(e) =>
+                    setPerspective(pi, { weightPct: Number(e.target.value) })
+                  }
+                />
+                %
+              </label>
+              <button
+                type="button"
+                onClick={() => removeSection(pi)}
+                disabled={tpl.perspectives.length <= 1}
+                className="text-sm text-gray-500 hover:text-red-600 disabled:text-gray-300"
+                title="Remove this section; its weight is shared out across the rest"
+              >
+                Remove section
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 space-y-4">
@@ -243,6 +302,28 @@ export function TemplateEditor({
           </button>
         </section>
       ))}
+
+      {missingSections.length > 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4">
+          <p className="text-sm text-gray-600">
+            Removed sections — add one back (it returns at 0%, set its weight
+            after). Bear in mind the four fixed sections are what keep scores
+            comparable across roles.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {missingSections.map((s) => (
+              <button
+                key={s.kind}
+                type="button"
+                onClick={() => addSection(s.kind, s.label)}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+              >
+                + {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-3">
         <button

@@ -50,16 +50,19 @@ export const templateInputSchema = z
   .object({
     name: z.string().trim().min(1, "The template needs a name").max(200),
     description: z.string().trim().max(2000).optional().or(z.literal("")),
+    // The four perspectives are the default and keep scores comparable
+    // across roles, but a template may drop sections that don't apply.
     perspectives: z
       .array(perspectiveSchema)
-      .length(4, "A scorecard always has the four fixed perspectives"),
+      .min(1, "A scorecard needs at least one perspective")
+      .max(4),
   })
   .superRefine((tpl, ctx) => {
     const kinds = new Set(tpl.perspectives.map((p) => p.kind));
-    if (kinds.size !== 4) {
+    if (kinds.size !== tpl.perspectives.length) {
       ctx.addIssue({
         code: "custom",
-        message: "Each of the four perspectives must appear exactly once",
+        message: "Each perspective may appear only once",
       });
     }
     const total = tpl.perspectives.reduce((sum, p) => sum + p.weightPct, 0);
@@ -152,9 +155,9 @@ export async function assignTemplateToUser(opts: {
     if (!template || template.archived) {
       throw new ScorecardValidationError("Template not found or archived.");
     }
-    if (template.perspectives.length !== 4) {
+    if (template.perspectives.length < 1) {
       throw new ScorecardValidationError(
-        "This template is incomplete (needs all four perspectives) and cannot be assigned."
+        "This template has no perspectives and cannot be assigned."
       );
     }
 
