@@ -62,6 +62,19 @@ export async function updateUserAction(
   redirect("/admin/users");
 }
 
+export async function resendWelcomeAction(userId: string) {
+  await requireAdmin();
+  const { sendWelcomeEmail } = await import("@/lib/notifications");
+  try {
+    const result = await sendWelcomeEmail(userId);
+    return result === "skipped"
+      ? { error: "Not sent — user inactive or no mail transport configured." }
+      : {};
+  } catch (e) {
+    return { error: e instanceof Error ? e.message.slice(0, 200) : "Send failed." };
+  }
+}
+
 export async function setUserActiveAction(userId: string, active: boolean) {
   const admin = await requireAdmin();
   try {

@@ -284,6 +284,31 @@ export async function runDueNotifications(
   return summary;
 }
 
+/**
+ * Welcome email: sent when a person's FIRST scorecard is assigned (so they
+ * never land in an empty app), and resendable from the user list. Link
+ * only — no performance data.
+ */
+export async function sendWelcomeEmail(userId: string): Promise<"sent" | "skipped"> {
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) return "skipped";
+  const first = user.name.split(" ")[0];
+  return sendMail({
+    to: user.email,
+    subject: "You're set up on Heya Performance",
+    bodyText: [
+      `Hi ${first},`,
+      "",
+      "Heya Performance is where your weekly check-in happens: you rate your week against your scorecard, your manager rates it independently, and the two of you compare notes in your catch-up.",
+      "",
+      "There's no password — sign in with your normal Heya Microsoft account:",
+      appUrl("/"),
+      "",
+      'Your scorecard — every measure, and what "meets standard" looks like — is under "My scorecard" once you\'re in. Check-ins open on Thursdays.',
+    ].join("\n"),
+  });
+}
+
 /** Event notification: fired when the second side submits (brief §10). */
 export async function notifyBothSubmitted(checkInId: string): Promise<void> {
   const checkIn = await db.checkIn.findUnique({

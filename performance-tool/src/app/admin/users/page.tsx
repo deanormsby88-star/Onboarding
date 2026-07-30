@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/current-user";
 import { listUsersWithReports } from "@/lib/users";
 import { AppShell } from "@/components/app-shell";
-import { setUserActiveAction } from "./actions";
+import { resendWelcomeAction, setUserActiveAction } from "./actions";
 
 const roleLabel = {
   EMPLOYEE: "Employee",
@@ -86,6 +86,22 @@ export default async function UsersPage() {
                     >
                       Edit
                     </Link>
+                    {u.isActive ? (
+                      <form
+                        action={async () => {
+                          "use server";
+                          await resendWelcomeAction(u.id);
+                        }}
+                      >
+                        <button
+                          type="submit"
+                          className="text-gray-500 hover:underline"
+                          title="Email them the sign-in link and a one-paragraph intro"
+                        >
+                          Send welcome
+                        </button>
+                      </form>
+                    ) : null}
                     {u.id !== admin.id ? (
                       <form
                         action={async () => {

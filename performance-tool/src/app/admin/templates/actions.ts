@@ -57,12 +57,20 @@ export async function assignScorecardAction(
     return { error: "That effective date is not a valid date." };
   }
   try {
-    await assignTemplateToUser({
+    const scorecard = await assignTemplateToUser({
       userId,
       templateId,
       effectiveFrom: date,
       actorId: admin.id,
     });
+    if (scorecard.version === 1) {
+      // First-ever scorecard: welcome them. Fire-and-forget — a mail
+      // failure must never fail the assignment.
+      const { sendWelcomeEmail } = await import("@/lib/notifications");
+      sendWelcomeEmail(userId).catch((e) =>
+        console.error("welcome email failed:", e)
+      );
+    }
   } catch (e) {
     if (e instanceof ScorecardValidationError) return { error: e.message };
     throw e;
