@@ -1,15 +1,28 @@
 import { requireUser } from "@/lib/current-user";
 import { getLiveScorecard, PERSPECTIVE_LABEL } from "@/lib/scorecards";
 import { AppShell } from "@/components/app-shell";
+import { db } from "@/lib/db";
 
 /** Read-only view of the signed-in user's live scorecard (brief §7). */
 export default async function MyScorecardPage() {
   const user = await requireUser();
   const scorecard = await getLiveScorecard(user.id);
+  const manager = user.managerId
+    ? await db.user.findUnique({
+        where: { id: user.managerId },
+        select: { name: true },
+      })
+    : null;
 
   return (
     <AppShell user={user}>
       <h1 className="text-2xl font-semibold">My scorecard</h1>
+      <p className="mt-1 text-sm text-gray-600">
+        {user.jobTitle ? `${user.jobTitle} · ` : ""}
+        {manager
+          ? `You report to ${manager.name} — they rate your week alongside you.`
+          : "No manager is set for you yet — ask an admin."}
+      </p>
       {!scorecard ? (
         <p className="mt-4 text-sm text-gray-600">
           No scorecard assigned yet. Your manager or an admin sets this up —
