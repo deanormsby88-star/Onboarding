@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/current-user";
+import { db } from "@/lib/db";
 
-export function AppShell({
+export async function AppShell({
   user,
   children,
 }: {
   user: CurrentUser;
   children: React.ReactNode;
 }) {
+  // The "My PIP" tab exists only for people who actually have one, so its
+  // absence never raises questions for everyone else.
+  const hasPip =
+    (await db.pip.count({
+      where: { userId: user.id, status: { not: "DRAFT" } },
+    })) > 0;
   return (
     <div className="min-h-screen">
       <header className="border-b border-gray-200 bg-white">
@@ -53,6 +60,14 @@ export function AppShell({
             >
               Objectives
             </Link>
+            {hasPip ? (
+              <Link
+                href="/pip"
+                className="text-sm font-medium text-amber-700 hover:underline"
+              >
+                My PIP
+              </Link>
+            ) : null}
             {user.role === "ADMIN" ? (
               <Link
                 href="/admin"

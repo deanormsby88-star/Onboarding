@@ -9,6 +9,8 @@ import { individualAnalytics } from "@/lib/analytics";
 import { IndividualAnalyticsView } from "@/components/individual-analytics";
 import { objectivesFor } from "@/lib/objectives";
 import { ObjectivesView } from "@/components/objectives-view";
+import { pipInclude } from "@/lib/pips";
+import { PipView } from "@/components/pip-view";
 
 /** Person view: one report's full record (brief §7). */
 export default async function PersonPage({
@@ -43,6 +45,11 @@ export default async function PersonPage({
     individualAnalytics(userId),
     objectivesFor(userId),
   ]);
+  const pips = await db.pip.findMany({
+    where: { userId, status: { not: "DRAFT" } },
+    include: pipInclude,
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <AppShell user={viewer}>
@@ -106,6 +113,21 @@ export default async function PersonPage({
         <h2 className="text-lg font-medium">Check-ins</h2>
         <CheckInList checkIns={checkIns} />
       </section>
+
+      {pips.length > 0 ? (
+        <section className="mt-8">
+          <h2 className="text-lg font-medium">Performance improvement plan</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Visible to {person.name.split(" ")[0]} in their own app under
+            &quot;My PIP&quot; — the process is transparent by design.
+          </p>
+          <div className="mt-3 space-y-8">
+            {pips.map((pip) => (
+              <PipView key={pip.id} pip={pip} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="text-lg font-medium">Development objectives</h2>
