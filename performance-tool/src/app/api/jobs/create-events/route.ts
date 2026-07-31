@@ -22,15 +22,18 @@ import { decryptSecret } from "@/lib/crypto";
 const eventSchema = z.object({
   subject: z.string().min(1),
   attendees: z.array(z.string().email()).min(1),
-  weekday: z.enum([
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday",
-  ]),
+  /** Omit weekday for a one-off event on firstDate. */
+  weekday: z
+    .enum([
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ])
+    .optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   firstDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -135,10 +138,18 @@ export async function POST(request: Request) {
           emailAddress: { address },
           type: "required",
         })),
-        recurrence: {
-          pattern: { type: "weekly", interval: 1, daysOfWeek: [ev.weekday] },
-          range: { type: "noEnd", startDate: ev.firstDate },
-        },
+        ...(ev.weekday
+          ? {
+              recurrence: {
+                pattern: {
+                  type: "weekly",
+                  interval: 1,
+                  daysOfWeek: [ev.weekday],
+                },
+                range: { type: "noEnd", startDate: ev.firstDate },
+              },
+            }
+          : {}),
         isReminderOn: true,
         reminderMinutesBeforeStart: 10,
       }),
