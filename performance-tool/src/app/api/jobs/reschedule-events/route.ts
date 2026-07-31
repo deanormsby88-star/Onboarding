@@ -21,6 +21,8 @@ const itemSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  /** Mark the organiser's copy as non-blocking (attendees stay busy). */
+  showAsFree: z.boolean().optional(),
 });
 const payloadSchema = z.object({ items: z.array(itemSchema).min(1).max(25) });
 
@@ -103,6 +105,7 @@ export async function POST(request: Request) {
             dateTime: `${item.date}T${item.endTime}:00`,
             timeZone: "South Africa Standard Time",
           },
+          ...(item.showAsFree ? { showAs: "free" } : {}),
         }),
       }
     );
