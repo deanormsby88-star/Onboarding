@@ -131,11 +131,38 @@ describe("templateInputSchema", () => {
     expect(templateInputSchema.safeParse(dupes).success).toBe(false);
   });
 
-  it("all seed templates are valid", () => {
+  it("all nine v4 seed templates are valid", () => {
+    expect(SEED_TEMPLATES).toHaveLength(9);
     for (const tpl of SEED_TEMPLATES) {
       const result = templateInputSchema.safeParse(tpl);
       expect(result.success, `${tpl.name}: ${result.error?.message}`).toBe(true);
     }
+  });
+
+  it("v4 templates hold 12-13 measures each and weights sum to 100", () => {
+    for (const tpl of SEED_TEMPLATES) {
+      const count = tpl.perspectives.reduce((s, p) => s + p.measures.length, 0);
+      expect(count, tpl.name).toBeGreaterThanOrEqual(12);
+      expect(count, tpl.name).toBeLessThanOrEqual(13);
+      const weights = tpl.perspectives.reduce((s, p) => s + p.weightPct, 0);
+      expect(weights, tpl.name).toBe(100);
+    }
+  });
+
+  it("rejects a template over the 13-measure ceiling", () => {
+    const tpl = validTemplate("too-long");
+    // 4 perspectives × 2 measures = 8; pad one perspective past the ceiling.
+    const base = tpl.perspectives[0]!.measures[0]!;
+    tpl.perspectives.forEach((p, pi) => {
+      p.measures = Array.from({ length: pi === 0 ? 5 : 3 }, (_, i) => ({
+        ...base,
+        code: `${pi}.${i}`,
+      }));
+    });
+    // 5 + 3 + 3 + 3 = 14 measures
+    const result = templateInputSchema.safeParse(tpl);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result.error?.issues)).toContain("capped at 13");
   });
 });
 

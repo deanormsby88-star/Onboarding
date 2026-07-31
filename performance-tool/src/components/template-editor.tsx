@@ -172,13 +172,21 @@ export function TemplateEditor({
         </div>
       </div>
 
-      <p
-        className={`text-sm font-medium ${
-          weightTotal === 100 ? "text-heya-green" : "text-amber-600"
-        }`}
-      >
-        Perspective weights: {weightTotal}%{" "}
-        {weightTotal === 100 ? "✓" : "— must sum to 100%"}
+      <p className="text-sm font-medium">
+        <span className={weightTotal === 100 ? "text-heya-green" : "text-amber-600"}>
+          Perspective weights: {weightTotal}%{" "}
+          {weightTotal === 100 ? "✓" : "— must sum to 100%"}
+        </span>
+        <span
+          className={`ml-4 ${
+            tpl.perspectives.reduce((s, p) => s + p.measures.length, 0) > 13
+              ? "text-red-600"
+              : "text-gray-500"
+          }`}
+        >
+          Measures: {tpl.perspectives.reduce((s, p) => s + p.measures.length, 0)}/13
+          — the ceiling that keeps a check-in under five minutes
+        </span>
       </p>
 
       {tpl.perspectives.map((p, pi) => (

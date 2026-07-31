@@ -72,6 +72,18 @@ export const templateInputSchema = z
         message: `Perspective weights must sum to 100% (currently ${total}%)`,
       });
     }
+    // The five-minute promise: ~20s per measure means 13 is the ceiling
+    // before the weekly cadence starts slipping (templates doc v4).
+    const measureCount = tpl.perspectives.reduce(
+      (sum, p) => sum + p.measures.length,
+      0
+    );
+    if (measureCount > 13) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Templates are capped at 13 measures to keep the check-in under five minutes (currently ${measureCount})`,
+      });
+    }
   });
 
 export type TemplateInput = z.infer<typeof templateInputSchema>;
