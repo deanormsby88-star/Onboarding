@@ -36,7 +36,7 @@ export async function GET(request: Request) {
       grant_type: "authorization_code",
       code,
       redirect_uri: appUrl("/api/mail-connect/callback"),
-      scope: "openid email offline_access https://graph.microsoft.com/Mail.Send",
+      scope: "openid email offline_access https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Calendars.ReadWrite",
     }),
   });
   if (!res.ok) {

@@ -23,7 +23,7 @@ export async function GET() {
     response_type: "code",
     redirect_uri: appUrl("/api/mail-connect/callback"),
     response_mode: "query",
-    scope: "openid email offline_access https://graph.microsoft.com/Mail.Send",
+    scope: "openid email offline_access https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/Calendars.ReadWrite",
     state,
     // Force the consent screen so the Mail.Send grant (and a refresh token
     // carrying it) is definitely issued.
