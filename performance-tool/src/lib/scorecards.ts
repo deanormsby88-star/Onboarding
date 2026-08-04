@@ -72,16 +72,18 @@ export const templateInputSchema = z
         message: `Perspective weights must sum to 100% (currently ${total}%)`,
       });
     }
-    // The five-minute promise: ~20s per measure means 13 is the ceiling
-    // before the weekly cadence starts slipping (templates doc v4).
+    // The five-minute promise: ~20s per measure means 14 is the ceiling
+    // before the weekly cadence starts slipping (templates doc v4 set this at
+    // 13; raised to 14 when the Zoho Connect board measure was added to every
+    // template, which still lands at ~4m40s).
     const measureCount = tpl.perspectives.reduce(
       (sum, p) => sum + p.measures.length,
       0
     );
-    if (measureCount > 13) {
+    if (measureCount > 14) {
       ctx.addIssue({
         code: "custom",
-        message: `Templates are capped at 13 measures to keep the check-in under five minutes (currently ${measureCount})`,
+        message: `Templates are capped at 14 measures to keep the check-in under five minutes (currently ${measureCount})`,
       });
     }
   });

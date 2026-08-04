@@ -6,8 +6,8 @@ import type { TemplateInput } from "../src/lib/scorecards";
  * holder's own role submission, templates 4 (Head of HR) and 9 (COO) are
  * drafts awaiting the holder's input.
  *
- * Every template holds 12-13 measures — at ~20 seconds per measure that is
- * the four-to-five-minute check-in promised to the team. 13 is a hard
+ * Every template holds 13-14 measures — at ~20 seconds per measure that is
+ * the four-to-five-minute check-in promised to the team. 14 is a hard
  * ceiling, enforced by templateInputSchema.
  */
 
@@ -18,6 +18,20 @@ const m = (code: string, name: string, definition: string, anchor3: string) => (
   anchor3,
   weight: 1,
 });
+
+/**
+ * Board hygiene applies to every role identically, so it is defined once and
+ * appended to each template's Commercial and Efficiency section (added
+ * August 2026). Weight 1 like every other measure, so it dilutes its section
+ * proportionally instead of re-weighting the measures already there.
+ */
+const zohoBoard = (code: string) =>
+  m(
+    code,
+    "Zoho Connect board accuracy",
+    "Keeps their own Zoho Connect board up to date and accurate: work items reflect real status, are updated as they move, and are closed off once done.",
+    "The board is a true picture of the work at any point in the week. Updated as items move rather than caught up just before the check-in, and nobody has to ask where something stands."
+  );
 
 export const SEED_TEMPLATES: TemplateInput[] = [
   // ------------------------------------------------------------------ 1
@@ -102,6 +116,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Handles what sits at his level rather than passing it up.",
             "Minimal errors, rework, or escalations back to the HR Manager on matters he could have closed himself."
           ),
+          zohoBoard("1.14"),
         ],
       },
       {
@@ -206,6 +221,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Operational blockers affecting Team Members or clients resolved or routed, not left sitting.",
             "No blocker raised in one week still sitting untouched in the next."
           ),
+          zohoBoard("2.13"),
         ],
       },
       {
@@ -304,6 +320,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Handles being pulled in several directions without losing clarity on what matters.",
             "Finishes the priority item rather than making partial progress on several. When priorities genuinely conflict, asks rather than guessing."
           ),
+          zohoBoard("3.13"),
         ],
       },
       {
@@ -414,6 +431,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Work distributed appropriately across the HR team.",
             "No critical process dependent on one person, team workload visibly balanced."
           ),
+          zohoBoard("4.13"),
         ],
       },
       {
@@ -524,6 +542,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Shift floor walks, attendance monitoring, and stepping in where the team needs help.",
             "Assigned walks completed and logged, and available when operations needs cover without it derailing recruitment delivery."
           ),
+          zohoBoard("5.13"),
         ],
       },
       {
@@ -622,6 +641,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "No licence, platform, or spend commitment made without alignment.",
             "Every commitment agreed in advance, with the alternatives and the cost of reversal laid out."
           ),
+          zohoBoard("6.13"),
         ],
       },
       {
@@ -726,6 +746,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Purchases made against a genuine need at a sensible price.",
             "Within budget, no panic buying caused by stock running out, and price checked on anything material."
           ),
+          zohoBoard("7.13"),
         ],
       },
       {
@@ -830,6 +851,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Documentation and playbooks that make business development activity consistent.",
             "Current enough that another person could run the same research process and get the same quality."
           ),
+          zohoBoard("8.13"),
         ],
       },
       {
@@ -934,6 +956,7 @@ export const SEED_TEMPLATES: TemplateInput[] = [
             "Vendor spend, headcount, and utilisation.",
             "Spend decisions made against a case, utilisation at target, no commitment made without alignment where it is required."
           ),
+          zohoBoard("9.14"),
         ],
       },
       {
