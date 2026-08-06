@@ -16,6 +16,7 @@ import { formatWeekRange, weekLabel } from "@/lib/weeks";
 import { db } from "@/lib/db";
 import { amendmentsForCheckIn } from "@/lib/amendments";
 import { AppShell } from "@/components/app-shell";
+import { SubmitButton } from "@/components/submit-button";
 import {
   acknowledgeAction,
   amendRatingAction,
@@ -387,12 +388,12 @@ export default async function CheckInDetailPage({
                 className="mt-1 block rounded-md border border-gray-300 bg-white px-2 py-2 text-sm"
               />
             </label>
-            <button
-              type="submit"
+            <SubmitButton
               className="rounded-md bg-heya-blue px-3 py-2 text-sm font-medium text-white hover:bg-heya-blue-dark"
+              pendingLabel="Promoting…"
             >
               Promote
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
       </section>
@@ -469,12 +470,12 @@ export default async function CheckInDetailPage({
                 placeholder="Reason (required, shown on the record)"
                 className="grow rounded-md border border-gray-300 px-3 py-1.5 text-sm"
               />
-              <button
-                type="submit"
+              <SubmitButton
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
+                pendingLabel="Amending…"
               >
                 Amend
-              </button>
+              </SubmitButton>
             </form>
           ) : null}
         </section>
@@ -488,12 +489,12 @@ export default async function CheckInDetailPage({
               await markDiscussionAction(id);
             }}
           >
-            <button
-              type="submit"
+            <SubmitButton
               className="rounded-lg bg-heya-purple px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+              pendingLabel="Saving…"
             >
               We&apos;ve had the conversation
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
         {view.canAcknowledge ? (
@@ -503,12 +504,12 @@ export default async function CheckInDetailPage({
               await acknowledgeAction(id);
             }}
           >
-            <button
-              type="submit"
+            <SubmitButton
               className="rounded-lg bg-heya-green px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+              pendingLabel="Locking…"
             >
               Acknowledge — lock this week
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
         {checkIn.status === "AWAITING_DISCUSSION" && !view.canMarkDiscussion ? (
@@ -544,12 +545,12 @@ export default async function CheckInDetailPage({
               placeholder="Reason for reopening (logged)"
               className="rounded-md border border-gray-300 px-3 py-2 text-sm"
             />
-            <button
-              type="submit"
+            <SubmitButton
               className="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+              pendingLabel="Reopening…"
             >
               Reopen missed week
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
         {checkIn.status === "MISSED" && user.role !== "ADMIN" ? (

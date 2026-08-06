@@ -9,6 +9,29 @@
   --color-heya-purple: #8b3daf;
 
   --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Indeterminate loading bar: we cannot know how long a server render will
+     take, so the bar shows motion rather than a false percentage. */
+  --animate-heya-progress: heya-progress 1.1s ease-in-out infinite;
+}
+
+@keyframes heya-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Respect people who have asked the OS to reduce motion: keep the bar
+   visible, just stop it sliding. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-heya-progress {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
 }
 
 body {
