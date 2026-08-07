@@ -1,11 +1,14 @@
 import { SkeletonBlock, TopProgress } from "@/components/top-progress";
 
 /**
- * Fallback shown during any navigation that does not have a closer
- * loading.tsx. Next renders this the moment a link is clicked, so the app
- * always acknowledges the click even when the server render is slow.
+ * Loading fallback for the signed-in areas of the app, re-exported by each
+ * authenticated segment's loading.tsx.
+ *
+ * Deliberately NOT placed at the app root: a root boundary also wraps "/"
+ * and "/signin", which turns the signed-out redirect into a streamed 200
+ * with a skeleton flash instead of a clean HTTP redirect.
  */
-export default function Loading() {
+export default function PageLoading() {
   return (
     <div className="min-h-screen">
       <TopProgress />
