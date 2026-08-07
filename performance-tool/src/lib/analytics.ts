@@ -179,16 +179,12 @@ export function directionOfTravel(managerScores: number[]): Direction {
   return "flat";
 }
 
-export async function teamAnalytics(
-  managerId: string
+/** Shared row builder behind both the per-manager and org-wide rollups. */
+async function analyticsForPeople(
+  people: { id: string; name: string }[]
 ): Promise<TeamMemberAnalytics[]> {
-  const reports = await db.user.findMany({
-    where: { managerId, isActive: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
   const out: TeamMemberAnalytics[] = [];
-  for (const r of reports) {
+  for (const r of people) {
     const { points, participation } = await individualAnalytics(r.id);
     const scored = points.filter((p) => p.manager != null);
     const latest = scored[scored.length - 1];
@@ -233,6 +229,32 @@ export async function teamAnalytics(
     });
   }
   return out;
+}
+
+/** One row per direct report of `managerId`. */
+export async function teamAnalytics(
+  managerId: string
+): Promise<TeamMemberAnalytics[]> {
+  const reports = await db.user.findMany({
+    where: { managerId, isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  return analyticsForPeople(reports);
+}
+
+/**
+ * Every active person, regardless of who they report to — the admin's
+ * org-wide picture. Callers MUST check the viewer is an admin first; this
+ * function deliberately applies no hierarchy filter of its own.
+ */
+export async function orgAnalytics(): Promise<TeamMemberAnalytics[]> {
+  const people = await db.user.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  return analyticsForPeople(people);
 }
 
 // ---------------------------------------------------------------------------

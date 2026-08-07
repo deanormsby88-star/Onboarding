@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
+import { orgAnalytics, teamAnalytics } from "@/lib/analytics";
 import {
   AccessDeniedError,
   assertCanViewUser,
@@ -174,5 +175,46 @@ describe("wouldCreateCycle", () => {
   it("allows legitimate moves", async () => {
     expect(await wouldCreateCycle(ids.emp1, ids.managerB)).toBe(false);
     expect(await wouldCreateCycle(ids.emp1, null)).toBe(false);
+  });
+});
+
+describe("orgAnalytics (admin org-wide view)", () => {
+  it("covers people outside the admin's own reporting line", async () => {
+    const rows = await orgAnalytics();
+    const seen = new Set(rows.map((r) => r.userId));
+    // managerB's branch is not under managerA, and nobody reports to the
+    // admin at all — the org view must still include them.
+    expect(seen.has(ids.managerB)).toBe(true);
+    expect(seen.has(ids.emp3)).toBe(true);
+    expect(seen.has(ids.emp2)).toBe(true);
+  });
+
+  it("is strictly wider than a manager's own team view", async () => {
+    const [org, team] = await Promise.all([
+      orgAnalytics(),
+      teamAnalytics(ids.managerA),
+    ]);
+    const teamIds = new Set(team.map((r) => r.userId));
+    expect(teamIds.has(ids.emp3)).toBe(false); // not managerA's report
+    expect(org.length).toBeGreaterThan(team.length);
+    for (const id of teamIds) {
+      expect(org.some((r) => r.userId === id)).toBe(true);
+    }
+  });
+
+  it("leaves deactivated people out", async () => {
+    await db.user.update({
+      where: { id: ids.emp3 },
+      data: { isActive: false, deactivatedAt: new Date() },
+    });
+    try {
+      const rows = await orgAnalytics();
+      expect(rows.some((r) => r.userId === ids.emp3)).toBe(false);
+    } finally {
+      await db.user.update({
+        where: { id: ids.emp3 },
+        data: { isActive: true, deactivatedAt: null },
+      });
+    }
   });
 });

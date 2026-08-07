@@ -69,12 +69,20 @@ export async function AppShell({
               </Link>
             ) : null}
             {user.role === "ADMIN" ? (
-              <Link
-                href="/admin"
-                className="text-sm font-medium text-heya-purple hover:underline"
-              >
-                Admin
-              </Link>
+              <>
+                <Link
+                  href="/everyone"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Everyone
+                </Link>
+                <Link
+                  href="/admin"
+                  className="text-sm font-medium text-heya-purple hover:underline"
+                >
+                  Admin
+                </Link>
+              </>
             ) : null}
           </nav>
           <div className="flex items-center gap-3">
