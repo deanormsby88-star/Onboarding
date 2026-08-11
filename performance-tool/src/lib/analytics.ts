@@ -2,7 +2,7 @@ import type { CheckInStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { PERSPECTIVE_LABEL, PERSPECTIVE_ORDER } from "@/lib/scorecards";
 import { overallScore, perspectiveScore, ratingsToMap } from "@/lib/scoring";
-import { weekLabel } from "@/lib/weeks";
+import { currentIsoWeek, weekLabel } from "@/lib/weeks";
 
 /**
  * Analytics (brief §9). All functions assume the CALLER has already
@@ -78,6 +78,12 @@ export type WeekPoint = {
 export type Participation = {
   completed: number;
   missed: number;
+  /**
+   * Past weeks where the ratings were done but the conversation or the
+   * acknowledgement was never recorded. Counted apart from `missed`: the work
+   * happened, the close-out did not.
+   */
+  notClosedOut: number;
   total: number;
   currentStreak: number; // consecutive completed weeks, counting backwards
 };
@@ -110,9 +116,21 @@ export async function individualAnalytics(
     if (checkIns[i]!.status === "COMPLETE") currentStreak++;
     else break;
   }
+  // The week in progress is not late yet, so it never counts as unclosed.
+  const now = currentIsoWeek();
+  const isPast = (c: { isoYear: number; isoWeek: number }) =>
+    c.isoYear < now.isoYear ||
+    (c.isoYear === now.isoYear && c.isoWeek < now.isoWeek);
   const participation: Participation = {
     completed: checkIns.filter((c) => c.status === "COMPLETE").length,
     missed: checkIns.filter((c) => c.status === "MISSED").length,
+    notClosedOut: checkIns.filter(
+      (c) =>
+        isPast(c) &&
+        c.status !== "COMPLETE" &&
+        c.status !== "MISSED" &&
+        (c.selfSubmittedAt !== null || c.managerSubmittedAt !== null)
+    ).length,
     total: checkIns.length,
     currentStreak,
   };

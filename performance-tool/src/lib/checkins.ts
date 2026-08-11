@@ -482,16 +482,25 @@ export async function acknowledge(checkInId: string, viewer: Viewer): Promise<vo
 // ---------------------------------------------------------------------------
 
 /**
- * The scheduled Sunday 23:59 job (brief §5): any check-in for the week not
- * COMPLETE goes to MISSED, and people who never even opened one get a
- * MISSED record so participation counts them. Missed weeks stay visible.
+ * The scheduled Sunday 23:59 job (brief §5).
+ *
+ * "Missed" means the week did not happen: nobody rated anything. A week where
+ * the ratings were done but the conversation or the acknowledgement was never
+ * recorded is NOT a miss — the work was done — so its status is left where it
+ * actually stopped and an event records that the week closed without a
+ * close-out. Branding those weeks MISSED overstated absence, hid the real
+ * bottleneck (the close-out step), and fed a false signal into participation
+ * counts and the PIP trigger.
  */
-export async function closeOutWeek(week: IsoWeek): Promise<{ missed: number }> {
+export async function closeOutWeek(
+  week: IsoWeek
+): Promise<{ missed: number; notClosedOut: number }> {
   const candidates = await db.user.findMany({
     where: { isActive: true, managerId: { not: null } },
     select: { id: true, managerId: true },
   });
   let missed = 0;
+  let notClosedOut = 0;
   for (const user of candidates) {
     const scorecard = await getLiveScorecard(user.id);
     if (!scorecard) continue;
@@ -522,13 +531,30 @@ export async function closeOutWeek(week: IsoWeek): Promise<{ missed: number }> {
       });
       missed++;
     } else if (existing.status !== "COMPLETE" && existing.status !== "MISSED") {
-      await db.$transaction(async (tx) => {
-        await transition(tx, existing, "MISSED", null, {}, "Week closed incomplete.");
-      });
-      missed++;
+      const ratedSomething =
+        existing.selfSubmittedAt !== null || existing.managerSubmittedAt !== null;
+      if (ratedSomething) {
+        // Keep the status honest and leave the week actionable — a late
+        // conversation and acknowledgement are still worth recording.
+        await db.checkInEvent.create({
+          data: {
+            checkInId: existing.id,
+            fromStatus: existing.status,
+            toStatus: existing.status,
+            actorId: null,
+            note: "Week closed before the check-in was closed out.",
+          },
+        });
+        notClosedOut++;
+      } else {
+        await db.$transaction(async (tx) => {
+          await transition(tx, existing, "MISSED", null, {}, "Week closed with no ratings.");
+        });
+        missed++;
+      }
     }
   }
-  return { missed };
+  return { missed, notClosedOut };
 }
 
 /** Admin-only, logged: a missed week may be reopened, never quietly backfilled. */

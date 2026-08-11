@@ -35,6 +35,13 @@ export function IndividualAnalyticsView({ data }: { data: IndividualAnalytics })
           value={`${participation.completed}/${participation.total}`}
         />
         <StatTile label="Weeks missed" value={String(participation.missed)} />
+        {participation.notClosedOut > 0 ? (
+          <StatTile
+            label="Not closed out"
+            value={String(participation.notClosedOut)}
+            hint="rated, but no conversation logged"
+          />
+        ) : null}
         <StatTile
           label="Current streak"
           value={String(participation.currentStreak)}
