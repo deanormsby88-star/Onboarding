@@ -60,6 +60,12 @@ export async function AppShell({
             >
               Objectives
             </Link>
+            <Link
+              href="/blockers"
+              className="text-sm font-medium text-gray-600 hover:underline"
+            >
+              Blockers
+            </Link>
             {hasPip ? (
               <Link
                 href="/pip"

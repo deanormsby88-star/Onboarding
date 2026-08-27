@@ -245,7 +245,7 @@ async function blockerOverdueMails(): Promise<Mail[]> {
       "",
       "A blocker raised weekly with no movement kills faith in the process — update it or close it out.",
       "",
-      appUrl("/"),
+      appUrl("/blockers"),
     ].join("\n"),
   }));
 }
